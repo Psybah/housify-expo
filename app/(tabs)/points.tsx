@@ -12,7 +12,8 @@ import {
   PlusCircle,
   UserPlus,
   Edit3,
-  Award
+  Award,
+  Home
 } from "lucide-react-native";
 import { colors } from '@/constants/colors';
 import { Button } from '@/components/Button';
@@ -39,7 +40,7 @@ export default function PointsScreen() {
   
   // Group transactions by date
   const groupedTransactions = transactions.reduce((groups, transaction) => {
-    const date = new Date(transaction.date).toDateString();
+    const date = new Date(transaction.createdAt).toDateString();
     if (!groups[date]) {
       groups[date] = [];
     }
@@ -65,7 +66,11 @@ export default function PointsScreen() {
   };
   
   return (
-    <View style={styles.container}>
+    <ScrollView 
+      style={styles.container}
+      contentContainerStyle={styles.contentContainer}
+      showsVerticalScrollIndicator={false}
+    >
       <View style={styles.header}>
         <Text style={styles.title}>House Points</Text>
         <Text style={styles.subtitle}>Manage your HP balance</Text>
@@ -86,7 +91,7 @@ export default function PointsScreen() {
           
           <View style={styles.balanceActions}>
             <Button
-              title="Buy Points"
+              label="Buy Points"
               onPress={handleBuyPoints}
               variant="primary"
               size="small"
@@ -95,7 +100,7 @@ export default function PointsScreen() {
             />
             
             <Button
-              title="Earn Points"
+              label="Earn Points"
               onPress={handleAddListing}
               variant="outline"
               size="small"
@@ -169,7 +174,7 @@ export default function PointsScreen() {
           </View>
           
           <Button
-            title="Buy House Points"
+            label="Buy House Points"
             onPress={handleBuyPoints}
             variant="primary"
             icon={<Coins size={18} color={colors.iconLight} />}
@@ -225,7 +230,7 @@ export default function PointsScreen() {
           <Text style={styles.sectionTitle}>Transaction History</Text>
         </View>
         
-        <ScrollView style={styles.transactionsList}>
+        <View style={styles.transactionsList}>
           {Object.keys(groupedTransactions).length > 0 ? (
             Object.entries(groupedTransactions).map(([date, dayTransactions]) => (
               <View key={date} style={styles.transactionGroup}>
@@ -241,39 +246,28 @@ export default function PointsScreen() {
                     </View>
                     
                     <View style={styles.transactionDetails}>
-                      <Text style={styles.transactionTitle}>{transaction.title}</Text>
+                      <Text style={styles.transactionTitle}>{transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}</Text>
                       <Text style={styles.transactionDescription}>{transaction.description}</Text>
                     </View>
                     
                     <Text style={[
                       styles.transactionAmount,
-                      { color: transaction.amount > 0 ? colors.verified : colors.unverified }
+                      transaction.type === 'spent' ? styles.transactionNegative : styles.transactionPositive
                     ]}>
-                      {transaction.amount > 0 ? '+' : ''}{transaction.amount}
+                      {transaction.type === 'spent' ? '-' : '+'}{transaction.amount} HP
                     </Text>
                   </View>
                 ))}
               </View>
             ))
           ) : (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyTitle}>No transactions yet</Text>
-              <Text style={styles.emptyText}>
-                Your transaction history will appear here once you start earning or spending points
-              </Text>
-              
-              <TouchableOpacity 
-                style={styles.emptyButton}
-                onPress={handleAddListing}
-              >
-                <Text style={styles.emptyButtonText}>Add a listing to earn points</Text>
-                <ArrowRight size={16} color={colors.primary} />
-              </TouchableOpacity>
+            <View style={styles.emptyTransactions}>
+              <Text style={styles.emptyTransactionsText}>No transactions yet</Text>
             </View>
           )}
-        </ScrollView>
+        </View>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -299,7 +293,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  contentContainer: {
     padding: 16,
+    paddingBottom: 32,
   },
   header: {
     marginBottom: 24,
@@ -539,33 +536,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-  emptyContainer: {
+  transactionNegative: {
+    color: colors.unverified,
+  },
+  transactionPositive: {
+    color: colors.verified,
+  },
+  emptyTransactions: {
     backgroundColor: colors.card,
     borderRadius: 12,
     padding: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  emptyTitle: {
+  emptyTransactionsText: {
     fontSize: 16,
     fontWeight: 'bold',
     color: colors.text,
     marginBottom: 8,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  emptyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  emptyButtonText: {
-    fontSize: 14,
-    color: colors.primary,
-    fontWeight: '500',
-    marginRight: 4,
   },
 });

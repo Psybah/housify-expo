@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "703268732187",
+    "project_id": "housify-d7bb2",
+    "storage_bucket": "housify-d7bb2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:703268732187:android:f3cecea7f29fb9517167be",
+        "android_client_info": {
+          "package_name": "com.housify.expo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBPe30Lbqd3FGi85SO024A7XeTTFf-Nhuo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:703268732187:android:b3ad268afdaece1d7167be",
+        "android_client_info": {
+          "package_name": "com.housify.home"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBPe30Lbqd3FGi85SO024A7XeTTFf-Nhuo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

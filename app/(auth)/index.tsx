@@ -1,19 +1,13 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image, SafeAreaView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Home, User, Coins } from "lucide-react-native";
+import { Home, User, ArrowRight } from 'lucide-react-native';
 import { colors } from '@/constants/colors';
 import { Button } from '@/components/Button';
-import { useAuthStore } from '@/store/auth-store';
-
-const { width, height } = Dimensions.get('window');
 
 export default function WelcomeScreen() {
   const router = useRouter();
-  const { isAuthenticated } = useAuthStore();
-  
-  // Remove the automatic navigation and let the user click buttons instead
   
   const handleLogin = () => {
     router.push('/login');
@@ -23,95 +17,65 @@ export default function WelcomeScreen() {
     router.push('/register');
   };
   
-  // If user is already authenticated, show a different button
-  const handleContinue = () => {
-    router.replace('/(tabs)');
-  };
-  
   return (
-    <View style={styles.container}>
-      <Image
-        source={{ uri: 'https://images.unsplash.com/photo-1560518883-ce09059eeffa' }}
-        style={styles.backgroundImage}
-      />
-      
+    <SafeAreaView style={styles.container}>
       <LinearGradient
-        colors={['transparent', 'rgba(255, 255, 255, 0.8)', colors.background]}
+        colors={[colors.background, colors.background, colors.card]}
         style={styles.gradient}
-      />
-      
-      <View style={styles.content}>
-        <View style={styles.logoContainer}>
-          <Home size={40} color={colors.primary} />
-          <Text style={styles.logoText}>Housify</Text>
-        </View>
-        
-        <Text style={styles.tagline}>Find your dream home, earn while you help others</Text>
-        
-        <View style={styles.featuresContainer}>
-          <View style={styles.featureItem}>
-            <View style={[styles.featureIcon, { backgroundColor: colors.primary }]}>
-              <Home size={24} color={colors.background} />
+      >
+        <View style={styles.content}>
+          <View style={styles.logoContainer}>
+            <View style={styles.logoBackground}>
+              <Home size={60} color={colors.primary} />
             </View>
-            <View style={styles.featureTextContainer}>
-              <Text style={styles.featureTitle}>Post Listings</Text>
-              <Text style={styles.featureDescription}>Share available houses and earn points</Text>
+            <Text style={styles.appName}>Housify</Text>
+            <Text style={styles.tagline}>Find your perfect home</Text>
+          </View>
+          
+          <View style={styles.featuresContainer}>
+            <View style={styles.featureItem}>
+              <View style={styles.featureIcon}>
+                <Home size={24} color={colors.primary} />
+              </View>
+              <View style={styles.featureTextContainer}>
+                <Text style={styles.featureTitle}>Discover Properties</Text>
+                <Text style={styles.featureDescription}>
+                  Browse thousands of listings to find your perfect home
+                </Text>
+              </View>
+            </View>
+            
+            <View style={styles.featureItem}>
+              <View style={styles.featureIcon}>
+                <User size={24} color={colors.primary} />
+              </View>
+              <View style={styles.featureTextContainer}>
+                <Text style={styles.featureTitle}>Verified Listings</Text>
+                <Text style={styles.featureDescription}>
+                  All properties are verified for your peace of mind
+                </Text>
+              </View>
             </View>
           </View>
           
-          <View style={styles.featureItem}>
-            <View style={[styles.featureIcon, { backgroundColor: colors.secondary }]}>
-              <Coins size={24} color={colors.background} />
-            </View>
-            <View style={styles.featureTextContainer}>
-              <Text style={styles.featureTitle}>Earn Points</Text>
-              <Text style={styles.featureDescription}>Get rewarded for helping the community</Text>
-            </View>
-          </View>
-          
-          <View style={styles.featureItem}>
-            <View style={[styles.featureIcon, { backgroundColor: colors.primary }]}>
-              <User size={24} color={colors.background} />
-            </View>
-            <View style={styles.featureTextContainer}>
-              <Text style={styles.featureTitle}>Connect Directly</Text>
-              <Text style={styles.featureDescription}>Talk to landlords without middlemen</Text>
-            </View>
-          </View>
-        </View>
-      </View>
-      
-      <View style={styles.footer}>
-        {isAuthenticated ? (
-          <Button
-            title="Continue to App"
-            onPress={handleContinue}
-            fullWidth
-            size="large"
-            style={styles.registerButton}
-          />
-        ) : (
-          <>
+          <View style={styles.buttonsContainer}>
             <Button
-              title="Create Account"
-              onPress={handleRegister}
-              fullWidth
-              size="large"
-              style={styles.registerButton}
+              label="Sign In"
+              onPress={handleLogin}
+              variant="primary"
+              style={styles.button}
             />
             
             <Button
-              title="Log In"
-              onPress={handleLogin}
+              label="Create Account"
+              onPress={handleRegister}
               variant="outline"
-              fullWidth
-              size="large"
-              style={styles.loginButton}
+              style={styles.button}
             />
-          </>
-        )}
-      </View>
-    </View>
+          </View>
+        </View>
+      </LinearGradient>
+    </SafeAreaView>
   );
 }
 
@@ -120,53 +84,56 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
-  backgroundImage: {
-    position: 'absolute',
-    width,
-    height: height * 0.6,
-    top: 0,
-  },
   gradient: {
-    position: 'absolute',
-    width,
-    height: height * 0.6,
-    top: 0,
+    flex: 1,
   },
   content: {
     flex: 1,
-    justifyContent: 'flex-end',
-    paddingHorizontal: 24,
-    paddingBottom: 32,
+    padding: 24,
+    justifyContent: 'space-between',
   },
   logoContainer: {
-    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 60,
+  },
+  logoBackground: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: colors.card,
+    justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  logoText: {
-    fontSize: 36,
+  appName: {
+    fontSize: 32,
     fontWeight: 'bold',
     color: colors.primary,
-    marginLeft: 12,
+    marginBottom: 8,
   },
   tagline: {
-    fontSize: 18,
-    color: colors.text,
-    marginBottom: 32,
-    lineHeight: 24,
+    fontSize: 16,
+    color: colors.textSecondary,
+    marginBottom: 40,
   },
   featuresContainer: {
-    marginBottom: 32,
+    marginBottom: 40,
   },
   featureItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 24,
   },
   featureIcon: {
     width: 48,
     height: 48,
     borderRadius: 24,
+    backgroundColor: colors.card,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
@@ -175,7 +142,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   featureTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: 'bold',
     color: colors.text,
     marginBottom: 4,
@@ -183,15 +150,12 @@ const styles = StyleSheet.create({
   featureDescription: {
     fontSize: 14,
     color: colors.textSecondary,
+    lineHeight: 20,
   },
-  footer: {
-    paddingHorizontal: 24,
-    paddingBottom: 32,
+  buttonsContainer: {
+    marginBottom: 40,
   },
-  registerButton: {
-    marginBottom: 12,
-  },
-  loginButton: {
-    borderColor: colors.primary,
+  button: {
+    marginBottom: 16,
   },
 });

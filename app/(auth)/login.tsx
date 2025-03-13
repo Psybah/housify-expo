@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Mail, Lock } from 'lucide-react-native';
 import { colors } from '@/constants/colors';
@@ -9,11 +9,29 @@ import { useAuthStore } from '@/store/auth-store';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { login, isLoading } = useAuthStore();
+  const { login, isLoading, error, clearError, resetPassword } = useAuthStore();
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  
+  // Clear form errors when auth store error changes
+  useEffect(() => {
+    if (error) {
+      // Display the error from the auth store
+      if (error.includes('email') || error.includes('Email')) {
+        setErrors({ email: error });
+      } else if (error.includes('password') || error.includes('Password')) {
+        setErrors({ password: error });
+      } else {
+        // General error
+        Alert.alert('Login Error', error);
+      }
+      
+      // Clear the error from the store
+      clearError();
+    }
+  }, [error, clearError]);
   
   const validateForm = () => {
     const newErrors: { email?: string; password?: string } = {};
@@ -38,11 +56,32 @@ export default function LoginScreen() {
     if (!validateForm()) return;
     
     try {
-      await login(email, password);
-      router.replace('/(tabs)');
+      const success = await login(email, password);
+      if (success) {
+        // Manually navigate to tabs after successful login
+        router.replace('/(tabs)');
+      }
     } catch (error) {
       console.error('Login error:', error);
-      setErrors({ email: 'Invalid email or password' });
+    }
+  };
+  
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setErrors({ email: 'Please enter your email address' });
+      return;
+    }
+    
+    try {
+      const success = await resetPassword(email);
+      if (success) {
+        Alert.alert(
+          'Password Reset',
+          'If an account exists with this email, you will receive a password reset link shortly.'
+        );
+      }
+    } catch (error) {
+      console.error('Password reset error:', error);
     }
   };
   
@@ -52,17 +91,14 @@ export default function LoginScreen() {
   
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
     >
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
+      <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Welcome Back</Text>
-          <Text style={styles.subtitle}>Log in to continue your house hunting journey</Text>
+          <Text style={styles.subtitle}>Sign in to continue</Text>
         </View>
         
         <View style={styles.form}>
@@ -73,8 +109,8 @@ export default function LoginScreen() {
             onChangeText={setEmail}
             keyboardType="email-address"
             autoCapitalize="none"
+            leftIcon={<Mail size={20} color={colors.primary} />}
             error={errors.email}
-            icon={<Mail size={20} color={colors.textSecondary} />}
           />
           
           <Input
@@ -83,23 +119,29 @@ export default function LoginScreen() {
             value={password}
             onChangeText={setPassword}
             secureTextEntry
+            leftIcon={<Lock size={20} color={colors.primary} />}
             error={errors.password}
-            icon={<Lock size={20} color={colors.textSecondary} />}
           />
           
+          <TouchableOpacity 
+            style={styles.forgotPassword}
+            onPress={handleForgotPassword}
+          >
+            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+          </TouchableOpacity>
+          
           <Button
-            title="Log In"
+            label="Sign In"
             onPress={handleLogin}
-            fullWidth
-            loading={isLoading}
-            style={styles.loginButton}
+            isLoading={isLoading}
+            style={styles.button}
           />
         </View>
         
         <View style={styles.footer}>
           <Text style={styles.footerText}>Don't have an account?</Text>
           <TouchableOpacity onPress={handleRegister}>
-            <Text style={styles.registerLink}>Create Account</Text>
+            <Text style={styles.registerText}>Register</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -109,15 +151,13 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  scrollContent: {
     flexGrow: 1,
-    padding: 24,
+    padding: 20,
+    backgroundColor: colors.background,
+    justifyContent: 'center',
   },
   header: {
-    marginBottom: 32,
+    marginBottom: 40,
   },
   title: {
     fontSize: 28,
@@ -130,10 +170,18 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   form: {
-    marginBottom: 24,
+    marginBottom: 30,
   },
-  loginButton: {
-    marginTop: 16,
+  forgotPassword: {
+    alignSelf: 'flex-end',
+    marginBottom: 20,
+  },
+  forgotPasswordText: {
+    color: colors.primary,
+    fontSize: 14,
+  },
+  button: {
+    marginTop: 10,
   },
   footer: {
     flexDirection: 'row',
@@ -142,9 +190,9 @@ const styles = StyleSheet.create({
   },
   footerText: {
     color: colors.textSecondary,
-    marginRight: 4,
+    marginRight: 5,
   },
-  registerLink: {
+  registerText: {
     color: colors.primary,
     fontWeight: 'bold',
   },

@@ -10,6 +10,7 @@ interface ListingsState {
   savedListings: string[]; // IDs of saved listings
   unlockedListings: string[]; // IDs of listings where contact is unlocked
   isLoading: boolean;
+  loadingMessage: string | null;
   fetchListings: () => Promise<void>;
   fetchUserListings: () => Promise<void>;
   addListing: (listing: Omit<Listing, 'id' | 'createdAt' | 'status'>) => Promise<Listing>;
@@ -28,6 +29,7 @@ interface ListingsState {
     bedrooms: number;
     verified: boolean;
   }>) => Listing[];
+  setLoadingMessage: (message: string | null) => void;
 }
 
 export const useListingsStore = create<ListingsState>()(
@@ -38,9 +40,14 @@ export const useListingsStore = create<ListingsState>()(
       savedListings: [],
       unlockedListings: [],
       isLoading: false,
+      loadingMessage: null,
+      
+      setLoadingMessage: (message) => {
+        set({ loadingMessage: message });
+      },
       
       fetchListings: async () => {
-        set({ isLoading: true });
+        set({ isLoading: true, loadingMessage: 'Loading listings...' });
         try {
           // In a real app, this would be an API call
           await new Promise(resolve => setTimeout(resolve, 1000));
@@ -309,15 +316,15 @@ export const useListingsStore = create<ListingsState>()(
             },
           ];
           
-          set({ listings: mockListings, isLoading: false });
+          set({ listings: mockListings, isLoading: false, loadingMessage: null });
         } catch (error) {
           console.error('Fetch listings error:', error);
-          set({ isLoading: false });
+          set({ isLoading: false, loadingMessage: null });
         }
       },
       
       fetchUserListings: async () => {
-        set({ isLoading: true });
+        set({ isLoading: true, loadingMessage: 'Loading your listings...' });
         try {
           const user = useAuthStore.getState().user;
           if (!user) throw new Error('User not authenticated');
@@ -329,15 +336,15 @@ export const useListingsStore = create<ListingsState>()(
           const allListings = get().listings;
           const userListings = allListings.filter(listing => listing.createdBy === user.id);
           
-          set({ userListings, isLoading: false });
+          set({ userListings, isLoading: false, loadingMessage: null });
         } catch (error) {
           console.error('Fetch user listings error:', error);
-          set({ isLoading: false });
+          set({ isLoading: false, loadingMessage: null });
         }
       },
       
       addListing: async (listingData) => {
-        set({ isLoading: true });
+        set({ isLoading: true, loadingMessage: 'Creating listing...' });
         try {
           const user = useAuthStore.getState().user;
           if (!user) throw new Error('User not authenticated');
@@ -357,6 +364,7 @@ export const useListingsStore = create<ListingsState>()(
             listings: [...state.listings, newListing],
             userListings: [...state.userListings, newListing],
             isLoading: false,
+            loadingMessage: null
           }));
           
           // Update user's listings array
@@ -367,13 +375,13 @@ export const useListingsStore = create<ListingsState>()(
           return newListing;
         } catch (error) {
           console.error('Add listing error:', error);
-          set({ isLoading: false });
+          set({ isLoading: false, loadingMessage: null });
           throw error;
         }
       },
       
       updateListing: async (id, data) => {
-        set({ isLoading: true });
+        set({ isLoading: true, loadingMessage: 'Updating listing...' });
         try {
           // In a real app, this would be an API call
           await new Promise(resolve => setTimeout(resolve, 1000));
@@ -386,16 +394,17 @@ export const useListingsStore = create<ListingsState>()(
               listing.id === id ? { ...listing, ...data } : listing
             ),
             isLoading: false,
+            loadingMessage: null
           }));
         } catch (error) {
           console.error('Update listing error:', error);
-          set({ isLoading: false });
+          set({ isLoading: false, loadingMessage: null });
           throw error;
         }
       },
       
       deleteListing: async (id) => {
-        set({ isLoading: true });
+        set({ isLoading: true, loadingMessage: 'Deleting listing...' });
         try {
           const user = useAuthStore.getState().user;
           if (!user) throw new Error('User not authenticated');
@@ -407,6 +416,7 @@ export const useListingsStore = create<ListingsState>()(
             listings: state.listings.filter(listing => listing.id !== id),
             userListings: state.userListings.filter(listing => listing.id !== id),
             isLoading: false,
+            loadingMessage: null
           }));
           
           // Update user's listings array
@@ -415,12 +425,13 @@ export const useListingsStore = create<ListingsState>()(
           });
         } catch (error) {
           console.error('Delete listing error:', error);
-          set({ isLoading: false });
+          set({ isLoading: false, loadingMessage: null });
           throw error;
         }
       },
       
       unlockListing: async (id) => {
+        set({ isLoading: true, loadingMessage: 'Unlocking listing details...' });
         try {
           const user = useAuthStore.getState().user;
           if (!user) throw new Error('User not authenticated');
@@ -430,11 +441,13 @@ export const useListingsStore = create<ListingsState>()(
           
           // Check if already unlocked
           if (get().unlockedListings.includes(id)) {
+            set({ isLoading: false, loadingMessage: null });
             return true;
           }
           
           // Check if user has enough points
           if (user.housePoints < listing.pointsToUnlock) {
+            set({ isLoading: false, loadingMessage: null });
             return false;
           }
           
@@ -446,11 +459,14 @@ export const useListingsStore = create<ListingsState>()(
           // Add to unlocked listings
           set((state) => ({
             unlockedListings: [...state.unlockedListings, id],
+            isLoading: false,
+            loadingMessage: null
           }));
           
           return true;
         } catch (error) {
           console.error('Unlock listing error:', error);
+          set({ isLoading: false, loadingMessage: null });
           return false;
         }
       },

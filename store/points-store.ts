@@ -8,6 +8,7 @@ interface PointsState {
   transactions: PointsTransaction[];
   packages: PointsPackage[];
   isLoading: boolean;
+  loadingMessage: string | null;
   referralInfo: ReferralInfo;
   fetchTransactions: () => Promise<void>;
   fetchPackages: () => Promise<void>;
@@ -15,6 +16,7 @@ interface PointsState {
   purchasePoints: (packageId: string) => Promise<boolean>;
   generateReferralCode: () => Promise<string>;
   processReferral: (referralCode: string) => Promise<boolean>;
+  setLoadingMessage: (message: string | null) => void;
 }
 
 export const usePointsStore = create<PointsState>()(
@@ -23,6 +25,7 @@ export const usePointsStore = create<PointsState>()(
       transactions: [],
       packages: [],
       isLoading: false,
+      loadingMessage: null,
       referralInfo: {
         code: '',
         pointsPerReferral: 100,
@@ -30,8 +33,12 @@ export const usePointsStore = create<PointsState>()(
         pointsEarned: 0,
       },
       
+      setLoadingMessage: (message) => {
+        set({ loadingMessage: message });
+      },
+      
       fetchTransactions: async () => {
-        set({ isLoading: true });
+        set({ isLoading: true, loadingMessage: 'Loading transactions...' });
         try {
           const user = useAuthStore.getState().user;
           if (!user) throw new Error('User not authenticated');
@@ -51,15 +58,15 @@ export const usePointsStore = create<PointsState>()(
             },
           ];
           
-          set({ transactions: mockTransactions, isLoading: false });
+          set({ transactions: mockTransactions, isLoading: false, loadingMessage: null });
         } catch (error) {
           console.error('Fetch transactions error:', error);
-          set({ isLoading: false });
+          set({ isLoading: false, loadingMessage: null });
         }
       },
       
       fetchPackages: async () => {
-        set({ isLoading: true });
+        set({ isLoading: true, loadingMessage: 'Loading packages...' });
         try {
           // In a real app, this would be an API call
           await new Promise(resolve => setTimeout(resolve, 1000));
@@ -93,10 +100,10 @@ export const usePointsStore = create<PointsState>()(
             },
           ];
           
-          set({ packages: mockPackages, isLoading: false });
+          set({ packages: mockPackages, isLoading: false, loadingMessage: null });
         } catch (error) {
           console.error('Fetch packages error:', error);
-          set({ isLoading: false });
+          set({ isLoading: false, loadingMessage: null });
         }
       },
       
@@ -116,15 +123,27 @@ export const usePointsStore = create<PointsState>()(
           }));
           
           // Update user's points based on transaction type
-          if (transactionData.type === 'earned' || transactionData.type === 'purchased' || transactionData.type === 'referral') {
-            useAuthStore.getState().updateUser({
-              housePoints: user.housePoints + transactionData.amount,
-            });
-          } else if (transactionData.type === 'spent') {
-            useAuthStore.getState().updateUser({
-              housePoints: user.housePoints - transactionData.amount,
-            });
-          }
+          // Use a longer timeout to ensure it happens after the current execution context
+          // and doesn't interfere with navigation
+          return new Promise<void>((resolve) => {
+            setTimeout(async () => {
+              try {
+                if (transactionData.type === 'earned' || transactionData.type === 'purchased' || transactionData.type === 'referral') {
+                  await useAuthStore.getState().updateUser({
+                    housePoints: user.housePoints + transactionData.amount,
+                  });
+                } else if (transactionData.type === 'spent') {
+                  await useAuthStore.getState().updateUser({
+                    housePoints: user.housePoints - transactionData.amount,
+                  });
+                }
+                resolve();
+              } catch (error) {
+                console.error('Update user points error:', error);
+                resolve();
+              }
+            }, 200);
+          });
         } catch (error) {
           console.error('Add transaction error:', error);
           throw error;
@@ -132,7 +151,7 @@ export const usePointsStore = create<PointsState>()(
       },
       
       purchasePoints: async (packageId) => {
-        set({ isLoading: true });
+        set({ isLoading: true, loadingMessage: 'Processing purchase...' });
         try {
           const user = useAuthStore.getState().user;
           if (!user) throw new Error('User not authenticated');
@@ -143,7 +162,10 @@ export const usePointsStore = create<PointsState>()(
           // In a real app, this would be a payment API call
           await new Promise(resolve => setTimeout(resolve, 1000));
           
-          // Add transaction
+          // Add transaction with a longer delay to prevent navigation issues
+          set({ loadingMessage: 'Adding points to your account...' });
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
           await get().addTransaction({
             userId: user.id,
             amount: packageData.amount,
@@ -151,22 +173,27 @@ export const usePointsStore = create<PointsState>()(
             description: `Purchased ${packageData.name}`,
           });
           
-          set({ isLoading: false });
+          // Add additional delay before completing the transaction
+          await new Promise(resolve => setTimeout(resolve, 300));
+          
+          set({ isLoading: false, loadingMessage: null });
           return true;
         } catch (error) {
           console.error('Purchase points error:', error);
-          set({ isLoading: false });
+          set({ isLoading: false, loadingMessage: null });
           return false;
         }
       },
       
       generateReferralCode: async () => {
+        set({ loadingMessage: 'Generating referral code...' });
         try {
           const user = useAuthStore.getState().user;
           if (!user) throw new Error('User not authenticated');
           
           // If user already has a referral code, return it
           if (user.referralCode) {
+            set({ loadingMessage: null });
             return user.referralCode;
           }
           
@@ -182,18 +209,21 @@ export const usePointsStore = create<PointsState>()(
           const referralCode = `${firstInitial}${code}`;
           
           // Update user with the new referral code
-          useAuthStore.getState().updateUser({
+          await useAuthStore.getState().updateUser({
             referralCode,
           });
           
+          set({ loadingMessage: null });
           return referralCode;
         } catch (error) {
           console.error('Generate referral code error:', error);
+          set({ loadingMessage: null });
           throw error;
         }
       },
       
       processReferral: async (referralCode) => {
+        set({ isLoading: true, loadingMessage: 'Processing referral...' });
         try {
           const user = useAuthStore.getState().user;
           if (!user) throw new Error('User not authenticated');
@@ -215,6 +245,7 @@ export const usePointsStore = create<PointsState>()(
           }));
           
           // Add transaction for the referral
+          set({ loadingMessage: 'Adding points to your account...' });
           await get().addTransaction({
             userId: user.id,
             amount: pointsPerReferral,
@@ -222,9 +253,11 @@ export const usePointsStore = create<PointsState>()(
             description: 'Referral bonus',
           });
           
+          set({ isLoading: false, loadingMessage: null });
           return true;
         } catch (error) {
           console.error('Process referral error:', error);
+          set({ isLoading: false, loadingMessage: null });
           return false;
         }
       },

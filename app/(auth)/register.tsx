@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { User, Mail, Phone, Lock } from 'lucide-react-native';
+import { Mail, Lock, User, Phone, CheckCircle } from 'lucide-react-native';
 import { colors } from '@/constants/colors';
 import { Input } from '@/components/Input';
 import { Button } from '@/components/Button';
@@ -9,7 +9,7 @@ import { useAuthStore } from '@/store/auth-store';
 
 export default function RegisterScreen() {
   const router = useRouter();
-  const { register, isLoading } = useAuthStore();
+  const { register, isLoading, error, clearError } = useAuthStore();
   
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -23,6 +23,24 @@ export default function RegisterScreen() {
     password?: string;
     confirmPassword?: string;
   }>({});
+  
+  // Handle auth store errors
+  useEffect(() => {
+    if (error) {
+      // Display the error from the auth store
+      if (error.includes('email') || error.includes('Email')) {
+        setErrors(prev => ({ ...prev, email: error }));
+      } else if (error.includes('password') || error.includes('Password')) {
+        setErrors(prev => ({ ...prev, password: error }));
+      } else {
+        // General error
+        Alert.alert('Registration Error', error);
+      }
+      
+      // Clear the error from the store
+      clearError();
+    }
+  }, [error, clearError]);
   
   const validateForm = () => {
     const newErrors: {
@@ -45,8 +63,8 @@ export default function RegisterScreen() {
     
     if (!phone) {
       newErrors.phone = 'Phone number is required';
-    } else if (!/^(\+234|0)[0-9]{10}$/.test(phone.replace(/\s/g, ''))) {
-      newErrors.phone = 'Enter a valid Nigerian phone number';
+    } else if (!/^\+?[0-9]{10,15}$/.test(phone.replace(/\s/g, ''))) {
+      newErrors.phone = 'Phone number is invalid';
     }
     
     if (!password) {
@@ -69,11 +87,27 @@ export default function RegisterScreen() {
     if (!validateForm()) return;
     
     try {
-      await register(name, email, phone, password);
-      router.replace('/(tabs)');
+      const success = await register({
+        name,
+        email,
+        phone,
+        password,
+      });
+      
+      if (success) {
+        Alert.alert(
+          'Registration Successful',
+          'Your account has been created successfully!',
+          [
+            {
+              text: 'OK',
+              onPress: () => router.replace('/(tabs)'),
+            },
+          ]
+        );
+      }
     } catch (error) {
       console.error('Registration error:', error);
-      setErrors({ email: 'Registration failed. Please try again.' });
     }
   };
   
@@ -83,17 +117,14 @@ export default function RegisterScreen() {
   
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={{ flex: 1 }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
     >
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
+      <ScrollView contentContainerStyle={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Join Housify to find your dream home</Text>
+          <Text style={styles.subtitle}>Sign up to get started</Text>
         </View>
         
         <View style={styles.form}>
@@ -102,8 +133,8 @@ export default function RegisterScreen() {
             placeholder="Enter your full name"
             value={name}
             onChangeText={setName}
+            leftIcon={<User size={20} color={colors.primary} />}
             error={errors.name}
-            icon={<User size={20} color={colors.textSecondary} />}
           />
           
           <Input
@@ -113,18 +144,18 @@ export default function RegisterScreen() {
             onChangeText={setEmail}
             keyboardType="email-address"
             autoCapitalize="none"
+            leftIcon={<Mail size={20} color={colors.primary} />}
             error={errors.email}
-            icon={<Mail size={20} color={colors.textSecondary} />}
           />
           
           <Input
             label="Phone Number"
-            placeholder="Enter your phone number (e.g. +2348012345678)"
+            placeholder="Enter your phone number"
             value={phone}
             onChangeText={setPhone}
             keyboardType="phone-pad"
+            leftIcon={<Phone size={20} color={colors.primary} />}
             error={errors.phone}
-            icon={<Phone size={20} color={colors.textSecondary} />}
           />
           
           <Input
@@ -133,8 +164,8 @@ export default function RegisterScreen() {
             value={password}
             onChangeText={setPassword}
             secureTextEntry
+            leftIcon={<Lock size={20} color={colors.primary} />}
             error={errors.password}
-            icon={<Lock size={20} color={colors.textSecondary} />}
           />
           
           <Input
@@ -143,23 +174,22 @@ export default function RegisterScreen() {
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             secureTextEntry
+            leftIcon={<CheckCircle size={20} color={colors.primary} />}
             error={errors.confirmPassword}
-            icon={<Lock size={20} color={colors.textSecondary} />}
           />
           
           <Button
-            title="Create Account"
+            label="Create Account"
             onPress={handleRegister}
-            fullWidth
-            loading={isLoading}
-            style={styles.registerButton}
+            isLoading={isLoading}
+            style={styles.button}
           />
         </View>
         
         <View style={styles.footer}>
           <Text style={styles.footerText}>Already have an account?</Text>
           <TouchableOpacity onPress={handleLogin}>
-            <Text style={styles.loginLink}>Log In</Text>
+            <Text style={styles.loginText}>Sign In</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -169,20 +199,18 @@ export default function RegisterScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
+    padding: 20,
     backgroundColor: colors.background,
   },
-  scrollContent: {
-    flexGrow: 1,
-    padding: 24,
-  },
   header: {
-    marginBottom: 24,
+    marginTop: 40,
+    marginBottom: 30,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: colors.text,
+    color: colors.primary,
     marginBottom: 8,
   },
   subtitle: {
@@ -190,22 +218,22 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   form: {
-    marginBottom: 24,
+    marginBottom: 30,
   },
-  registerButton: {
-    marginTop: 16,
+  button: {
+    marginTop: 20,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   footerText: {
     color: colors.textSecondary,
-    marginRight: 4,
+    marginRight: 5,
   },
-  loginLink: {
+  loginText: {
     color: colors.primary,
     fontWeight: 'bold',
   },

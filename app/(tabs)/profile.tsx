@@ -69,7 +69,7 @@ export default function ProfileScreen() {
     }
   };
   
-  const handleLogout = () => {
+  const handleLogout = async () => {
     Alert.alert(
       'Logout',
       'Are you sure you want to logout?',
@@ -80,9 +80,15 @@ export default function ProfileScreen() {
         },
         {
           text: 'Logout',
-          onPress: () => {
-            logout();
-            router.replace('/(auth)');
+          onPress: async () => {
+            try {
+              await logout();
+              // Manually navigate to auth after logout
+              router.replace('/(auth)');
+            } catch (error) {
+              console.error('Logout error:', error);
+              Alert.alert('Logout Failed', 'There was an error logging out. Please try again.');
+            }
           },
           style: 'destructive',
         },
@@ -169,6 +175,38 @@ export default function ProfileScreen() {
           <Edit3 size={16} color={colors.primary} />
           <Text style={styles.editProfileText}>Edit Profile</Text>
         </TouchableOpacity>
+      </View>
+      
+      {/* Saved Listings Section */}
+      <View style={styles.savedListingsSection}>
+        <View style={styles.sectionTitleRow}>
+          <Text style={styles.sectionTitle}>Saved Listings</Text>
+          <Text style={styles.savedCount}>
+            {savedListings.length} {savedListings.length === 1 ? 'property' : 'properties'}
+          </Text>
+        </View>
+        
+        {savedListings.length > 0 ? (
+          <View style={styles.listingsContainer}>
+            {savedListings.map(listing => (
+              <ListingCard key={listing.id} listing={listing} />
+            ))}
+          </View>
+        ) : (
+          <View style={styles.emptyContainer}>
+            <Heart size={48} color={colors.textSecondary} />
+            <Text style={styles.emptyTitle}>No Saved Listings</Text>
+            <Text style={styles.emptyDescription}>
+              Properties you save will appear here for easy access
+            </Text>
+            <TouchableOpacity 
+              style={styles.browseButton}
+              onPress={() => router.push('/(tabs)')}
+            >
+              <Text style={styles.browseButtonText}>Browse Listings</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
       
       <View style={styles.referralSection}>
@@ -638,7 +676,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   listingsContainer: {
-    marginTop: 8,
+    width: '100%',
   },
   emptyContainer: {
     alignItems: 'center',
@@ -646,6 +684,8 @@ const styles = StyleSheet.create({
     padding: 32,
     backgroundColor: colors.card,
     borderRadius: 12,
+    marginTop: 8,
+    marginBottom: 8,
   },
   emptyTitle: {
     fontSize: 18,
@@ -670,5 +710,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.background,
     fontWeight: '500',
+  },
+  savedListingsSection: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    marginBottom: 16,
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  savedCount: {
+    fontSize: 14,
+    color: colors.textSecondary,
   },
 });

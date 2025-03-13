@@ -49,7 +49,14 @@ export default function BuyPointsScreen() {
           [
             {
               text: 'OK',
-              onPress: () => router.back(),
+              onPress: () => {
+                // Wait for next frame and add to event queue to ensure navigation happens after dialog dismissal
+                setTimeout(() => {
+                  requestAnimationFrame(() => {
+                    router.back();
+                  });
+                }, 300);
+              },
             },
           ]
         );
@@ -81,7 +88,7 @@ export default function BuyPointsScreen() {
           </View>
         )}
         
-        {pkg.bonus > 0 && (
+        {pkg.bonus && pkg.bonus > 0 && (
           <View style={styles.bonusBadge}>
             <Gift size={12} color={colors.text} />
             <Text style={styles.bonusText}>+{pkg.bonus} Bonus</Text>
@@ -164,9 +171,9 @@ export default function BuyPointsScreen() {
       
       <View style={styles.footer}>
         <Button
-          title="Purchase Points"
+          label="Purchase Points"
           onPress={handlePurchase}
-          loading={isLoading}
+          isLoading={isLoading}
           disabled={!selectedPackage || isLoading}
           fullWidth
           icon={<CreditCard size={18} color={colors.iconLight} />}

@@ -7,11 +7,12 @@ import {
   ViewStyle, 
   TextStyle,
   TouchableOpacity,
+  StyleProp,
 } from 'react-native';
 import { Eye, EyeOff } from 'lucide-react-native';
 import { colors } from '@/constants/colors';
 
-type InputProps = {
+interface InputProps {
   label?: string;
   placeholder?: string;
   value: string;
@@ -22,14 +23,15 @@ type InputProps = {
   numberOfLines?: number;
   keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad';
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
-  style?: ViewStyle;
-  inputStyle?: TextStyle;
+  style?: StyleProp<ViewStyle>;
+  inputStyle?: StyleProp<TextStyle>;
   maxLength?: number;
   editable?: boolean;
-  icon?: React.ReactNode;
-};
+  leftIcon?: React.ReactNode;
+  rightIcon?: React.ReactNode;
+}
 
-export const Input = ({
+export const Input: React.FC<InputProps> = ({
   label,
   placeholder,
   value,
@@ -44,8 +46,9 @@ export const Input = ({
   inputStyle,
   maxLength,
   editable = true,
-  icon,
-}: InputProps) => {
+  leftIcon,
+  rightIcon,
+}) => {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
   const togglePasswordVisibility = () => {
@@ -60,16 +63,15 @@ export const Input = ({
         styles.inputContainer,
         error ? styles.inputError : null,
         !editable ? styles.inputDisabled : null,
-        multiline ? styles.inputMultiline : null,
       ]}>
-        {icon && <View style={styles.iconContainer}>{icon}</View>}
+        {leftIcon && <View style={styles.leftIconContainer}>{leftIcon}</View>}
         
         <TextInput
           style={[
             styles.input,
-            icon ? styles.inputWithIcon : null,
-            secureTextEntry ? styles.inputWithToggle : null,
-            multiline ? styles.textMultiline : null,
+            multiline ? styles.multilineInput : null,
+            leftIcon ? styles.inputWithLeftIcon : null,
+            (secureTextEntry || rightIcon) ? styles.inputWithRightIcon : null,
             inputStyle,
           ]}
           placeholder={placeholder}
@@ -87,7 +89,7 @@ export const Input = ({
         
         {secureTextEntry && (
           <TouchableOpacity 
-            style={styles.toggleButton} 
+            style={styles.rightIconContainer} 
             onPress={togglePasswordVisibility}
           >
             {isPasswordVisible ? (
@@ -96,6 +98,10 @@ export const Input = ({
               <Eye size={20} color={colors.textSecondary} />
             )}
           </TouchableOpacity>
+        )}
+        
+        {rightIcon && !secureTextEntry && (
+          <View style={styles.rightIconContainer}>{rightIcon}</View>
         )}
       </View>
       
@@ -110,55 +116,53 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   label: {
-    color: colors.text,
-    marginBottom: 6,
     fontSize: 14,
     fontWeight: '500',
+    color: colors.text,
+    marginBottom: 6,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.inputBackground,
-    borderRadius: 8,
     borderWidth: 1,
     borderColor: colors.border,
+    borderRadius: 8,
+    backgroundColor: colors.inputBackground,
   },
   input: {
     flex: 1,
+    height: 48,
+    paddingHorizontal: 12,
+    fontSize: 16,
     color: colors.text,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    fontSize: 14,
   },
-  inputWithIcon: {
+  multilineInput: {
+    height: 100,
+    textAlignVertical: 'top',
+    paddingTop: 12,
+  },
+  inputWithLeftIcon: {
     paddingLeft: 8,
   },
-  inputWithToggle: {
-    paddingRight: 40,
+  inputWithRightIcon: {
+    paddingRight: 8,
+  },
+  leftIconContainer: {
+    paddingLeft: 12,
+  },
+  rightIconContainer: {
+    paddingRight: 12,
   },
   inputError: {
     borderColor: colors.error,
   },
   inputDisabled: {
+    backgroundColor: colors.card,
     opacity: 0.7,
-  },
-  inputMultiline: {
-    minHeight: 100,
-  },
-  textMultiline: {
-    textAlignVertical: 'top',
   },
   errorText: {
     color: colors.error,
     fontSize: 12,
     marginTop: 4,
-  },
-  iconContainer: {
-    paddingLeft: 12,
-  },
-  toggleButton: {
-    position: 'absolute',
-    right: 12,
-    padding: 4,
   },
 });

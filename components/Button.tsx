@@ -11,29 +11,33 @@ import {
 import { colors } from '@/constants/colors';
 
 type ButtonProps = {
-  title: string;
+  label: string;
   onPress: () => void;
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
   size?: 'small' | 'medium' | 'large';
   fullWidth?: boolean;
-  loading?: boolean;
+  isLoading?: boolean;
   disabled?: boolean;
   icon?: React.ReactNode;
   style?: ViewStyle;
   textStyle?: TextStyle;
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
 };
 
 export const Button = ({
-  title,
+  label,
   onPress,
   variant = 'primary',
   size = 'medium',
   fullWidth = false,
-  loading = false,
+  isLoading = false,
   disabled = false,
   icon,
   style,
   textStyle,
+  accessibilityLabel,
+  accessibilityHint,
 }: ButtonProps) => {
   const getButtonStyle = () => {
     switch (variant) {
@@ -91,37 +95,37 @@ export const Button = ({
     }
   };
 
+  const buttonStyle = getButtonStyle();
+  const textStyle_ = getTextStyle();
+  const sizeStyle = getSizeStyle();
+  const textSizeStyle = getTextSizeStyle();
+
   return (
     <TouchableOpacity
       style={[
         styles.button,
-        getButtonStyle(),
-        getSizeStyle(),
+        buttonStyle,
+        sizeStyle,
         fullWidth && styles.fullWidth,
-        disabled && styles.disabledButton,
+        disabled && styles.disabled,
         style,
       ]}
       onPress={onPress}
-      disabled={disabled || loading}
-      activeOpacity={0.8}
+      disabled={disabled || isLoading}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel || label}
+      accessibilityHint={accessibilityHint}
     >
-      {loading ? (
+      {isLoading ? (
         <ActivityIndicator 
-          color={variant === 'outline' || variant === 'ghost' ? colors.primary : colors.background} 
+          color={variant === 'outline' || variant === 'ghost' ? colors.primary : colors.iconLight} 
           size="small" 
         />
       ) : (
         <View style={styles.contentContainer}>
           {icon && <View style={styles.iconContainer}>{icon}</View>}
-          <Text
-            style={[
-              getTextStyle(),
-              getTextSizeStyle(),
-              disabled && styles.disabledText,
-              textStyle,
-            ]}
-          >
-            {title}
+          <Text style={[styles.text, textStyle_, textSizeStyle, textStyle]}>
+            {label}
           </Text>
         </View>
       )}
@@ -134,6 +138,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
+    flexDirection: 'row',
   },
   contentContainer: {
     flexDirection: 'row',
@@ -143,11 +148,19 @@ const styles = StyleSheet.create({
   iconContainer: {
     marginRight: 8,
   },
+  fullWidth: {
+    width: '100%',
+  },
+  disabled: {
+    opacity: 0.5,
+  },
   primaryButton: {
     backgroundColor: colors.primary,
+    borderWidth: 0,
   },
   secondaryButton: {
     backgroundColor: colors.secondary,
+    borderWidth: 0,
   },
   outlineButton: {
     backgroundColor: 'transparent',
@@ -156,40 +169,35 @@ const styles = StyleSheet.create({
   },
   ghostButton: {
     backgroundColor: 'transparent',
+    borderWidth: 0,
   },
-  smallButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
-  mediumButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-  },
-  largeButton: {
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-  },
-  fullWidth: {
-    width: '100%',
-  },
-  disabledButton: {
-    opacity: 0.5,
+  text: {
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
   primaryText: {
-    color: colors.background,
-    fontWeight: 'bold',
+    color: colors.iconLight,
   },
   secondaryText: {
-    color: colors.background,
-    fontWeight: 'bold',
+    color: colors.iconLight,
   },
   outlineText: {
     color: colors.primary,
-    fontWeight: 'bold',
   },
   ghostText: {
     color: colors.primary,
-    fontWeight: 'bold',
+  },
+  smallButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  mediumButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+  },
+  largeButton: {
+    paddingVertical: 16,
+    paddingHorizontal: 32,
   },
   smallText: {
     fontSize: 12,
@@ -199,8 +207,5 @@ const styles = StyleSheet.create({
   },
   largeText: {
     fontSize: 16,
-  },
-  disabledText: {
-    opacity: 0.7,
   },
 });
