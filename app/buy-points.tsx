@@ -2,7 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Coins, CreditCard, CheckCircle, ArrowRight, Shield, Gift } from 'lucide-react-native';
+import { 
+  Coins, 
+  CreditCard, 
+  CheckCircle, 
+  ArrowRight, 
+  Shield, 
+  Gift,
+  Info
+} from "lucide-react-native";
 import { colors } from '@/constants/colors';
 import { Button } from '@/components/Button';
 import { PointsBadge } from '@/components/PointsBadge';
@@ -37,7 +45,7 @@ export default function BuyPointsScreen() {
       if (success) {
         Alert.alert(
           'Purchase Successful',
-          'Points have been added to your account!',
+          'House Points have been added to your account!',
           [
             {
               text: 'OK',
@@ -62,10 +70,17 @@ export default function BuyPointsScreen() {
         key={pkg.id}
         style={[
           styles.packageCard,
-          isSelected && styles.packageCardSelected
+          isSelected && styles.packageCardSelected,
+          pkg.popular && styles.packageCardPopular
         ]}
         onPress={() => handleSelectPackage(pkg.id)}
       >
+        {pkg.popular && (
+          <View style={styles.popularBadge}>
+            <Text style={styles.popularText}>Best Value</Text>
+          </View>
+        )}
+        
         {pkg.bonus > 0 && (
           <View style={styles.bonusBadge}>
             <Gift size={12} color={colors.text} />
@@ -75,19 +90,23 @@ export default function BuyPointsScreen() {
         
         <View style={styles.packageHeader}>
           <View style={styles.packageIconContainer}>
-            <Coins size={24} color={colors.text} />
+            <Coins size={24} color={colors.iconLight} />
           </View>
           <Text style={styles.packageName}>{pkg.name}</Text>
         </View>
         
+        <Text style={styles.packageDescription}>
+          {pkg.description || `Unlock ${pkg.listings} listing${pkg.listings !== 1 ? 's' : ''}`}
+        </Text>
+        
         <View style={styles.packageDetails}>
-          <Text style={styles.packageAmount}>{pkg.amount} P-Points</Text>
-          <Text style={styles.packagePrice}>₦{pkg.price}</Text>
+          <Text style={styles.packageAmount}>{pkg.amount} HP</Text>
+          <Text style={styles.packagePrice}>₦{pkg.price.toLocaleString()}</Text>
         </View>
         
         {isSelected && (
           <View style={styles.selectedIndicator}>
-            <CheckCircle size={20} color={colors.text} />
+            <CheckCircle size={20} color={colors.primary} />
           </View>
         )}
       </TouchableOpacity>
@@ -97,26 +116,24 @@ export default function BuyPointsScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <View style={styles.header}>
-        <Text style={styles.title}>Buy Points</Text>
-        <Text style={styles.subtitle}>Purchase P-Points to unlock verified listings</Text>
+        <Text style={styles.title}>Buy House Points</Text>
+        <Text style={styles.subtitle}>Purchase HP to unlock verified listings</Text>
       </View>
       
       <View style={styles.balanceCard}>
         <LinearGradient
-          colors={[colors.primary, colors.pPoints]}
+          colors={[colors.primary, '#034694']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.balanceGradient}
         >
           <View style={styles.balanceHeader}>
             <Text style={styles.balanceTitle}>Current Balance</Text>
-            <Shield size={20} color={colors.text} />
+            <Shield size={20} color={colors.iconLight} />
           </View>
           
           <View style={styles.balanceRow}>
-            <PointsBadge type="free" amount={user?.fPoints || 0} size="medium" />
-            <View style={styles.balanceSpacer} />
-            <PointsBadge type="paid" amount={user?.pPoints || 0} size="medium" />
+            <PointsBadge amount={user?.housePoints || 0} size="medium" />
           </View>
         </LinearGradient>
       </View>
@@ -129,13 +146,13 @@ export default function BuyPointsScreen() {
       
       <View style={styles.infoCard}>
         <View style={styles.infoIconContainer}>
-          <Coins size={24} color={colors.primary} />
+          <Info size={24} color={colors.primary} />
         </View>
         
         <View style={styles.infoContent}>
-          <Text style={styles.infoTitle}>Why Buy P-Points?</Text>
+          <Text style={styles.infoTitle}>Why Buy House Points?</Text>
           <Text style={styles.infoText}>
-            P-Points allow you to unlock verified listings with confirmed landlord details, ensuring a safer house hunting experience.
+            House Points allow you to unlock verified listings with confirmed landlord details, ensuring a safer house hunting experience.
           </Text>
           
           <TouchableOpacity style={styles.learnMoreButton}>
@@ -152,7 +169,7 @@ export default function BuyPointsScreen() {
           loading={isLoading}
           disabled={!selectedPackage || isLoading}
           fullWidth
-          icon={<CreditCard size={18} color={colors.text} />}
+          icon={<CreditCard size={18} color={colors.iconLight} />}
         />
         
         <TouchableOpacity 
@@ -206,14 +223,10 @@ const styles = StyleSheet.create({
   balanceTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: colors.text,
+    color: colors.iconLight,
   },
   balanceRow: {
-    flexDirection: 'row',
     alignItems: 'center',
-  },
-  balanceSpacer: {
-    width: 12,
   },
   section: {
     marginBottom: 24,
@@ -236,6 +249,23 @@ const styles = StyleSheet.create({
   packageCardSelected: {
     borderColor: colors.primary,
   },
+  packageCardPopular: {
+    borderColor: colors.popular,
+  },
+  popularBadge: {
+    position: 'absolute',
+    top: -10,
+    left: 16,
+    backgroundColor: colors.popular,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  popularText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: colors.iconLight,
+  },
   bonusBadge: {
     position: 'absolute',
     top: 12,
@@ -256,13 +286,13 @@ const styles = StyleSheet.create({
   packageHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   packageIconContainer: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.pPoints,
+    backgroundColor: colors.housePoints,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -272,6 +302,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: colors.text,
   },
+  packageDescription: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    marginBottom: 12,
+  },
   packageDetails: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -279,7 +314,8 @@ const styles = StyleSheet.create({
   },
   packageAmount: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: colors.primary,
+    fontWeight: 'bold',
   },
   packagePrice: {
     fontSize: 18,
@@ -302,7 +338,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: 'rgba(108, 92, 231, 0.1)',
+    backgroundColor: 'rgba(2, 43, 96, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,

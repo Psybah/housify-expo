@@ -4,14 +4,11 @@ import { Coins } from 'lucide-react-native';
 import { colors } from '@/constants/colors';
 
 type PointsBadgeProps = {
-  type: 'free' | 'paid';
   amount: number;
   size?: 'small' | 'medium' | 'large';
 };
 
-export const PointsBadge = ({ type, amount, size = 'medium' }: PointsBadgeProps) => {
-  const badgeColor = type === 'free' ? colors.fPoints : colors.pPoints;
-  
+export const PointsBadge = ({ amount, size = 'medium' }: PointsBadgeProps) => {
   const getSizeStyle = () => {
     switch (size) {
       case 'small':
@@ -44,10 +41,10 @@ export const PointsBadge = ({ type, amount, size = 'medium' }: PointsBadgeProps)
   const sizeStyle = getSizeStyle();
   
   return (
-    <View style={[styles.container, sizeStyle.container, { backgroundColor: badgeColor }]}>
-      <Coins size={sizeStyle.icon} color={colors.text} />
+    <View style={[styles.container, sizeStyle.container, { backgroundColor: colors.housePoints }]}>
+      <Coins size={sizeStyle.icon} color={colors.iconLight} />
       <Text style={[styles.text, sizeStyle.text]}>
-        {amount} {type === 'free' ? 'F-Points' : 'P-Points'}
+        {amount} HP
       </Text>
     </View>
   );
@@ -70,7 +67,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   text: {
-    color: colors.text,
+    color: colors.iconLight,
     fontWeight: 'bold',
     marginLeft: 4,
   },

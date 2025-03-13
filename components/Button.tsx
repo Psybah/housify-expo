@@ -107,7 +107,7 @@ export const Button = ({
     >
       {loading ? (
         <ActivityIndicator 
-          color={variant === 'outline' || variant === 'ghost' ? colors.primary : colors.text} 
+          color={variant === 'outline' || variant === 'ghost' ? colors.primary : colors.background} 
           size="small" 
         />
       ) : (
@@ -176,11 +176,11 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   primaryText: {
-    color: colors.text,
+    color: colors.background,
     fontWeight: 'bold',
   },
   secondaryText: {
-    color: colors.text,
+    color: colors.background,
     fontWeight: 'bold',
   },
   outlineText: {

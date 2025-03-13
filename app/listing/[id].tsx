@@ -9,7 +9,8 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
-  Platform
+  Platform,
+  Share
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -28,7 +29,7 @@ import {
   Heart,
   Flag,
   Coins
-} from 'lucide-react-native';
+} from "lucide-react-native";
 import { colors } from '@/constants/colors';
 import { Button } from '@/components/Button';
 import { PointsBadge } from '@/components/PointsBadge';
@@ -41,17 +42,23 @@ export default function ListingDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   
-  const { getListingById, unlockListing, unlockedListings } = useListingsStore();
+  const { 
+    getListingById, 
+    unlockListing, 
+    unlockedListings, 
+    saveListing, 
+    unsaveListing, 
+    isListingSaved 
+  } = useListingsStore();
   const { user } = useAuthStore();
   
   const [listing, setListing] = useState(getListingById(id));
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isUnlocking, setIsUnlocking] = useState(false);
+  const [isSaved, setIsSaved] = useState(isListingSaved(id));
   
   const isUnlocked = unlockedListings.includes(id);
-  const canUnlock = listing?.requiresPaidPoints 
-    ? (user?.pPoints || 0) >= (listing?.pointsToUnlock || 0)
-    : (user?.fPoints || 0) >= (listing?.pointsToUnlock || 0);
+  const canUnlock = user?.housePoints >= (listing?.pointsToUnlock || 0);
   
   useEffect(() => {
     if (!listing) {
@@ -72,7 +79,7 @@ export default function ListingDetailScreen() {
     if (!canUnlock) {
       Alert.alert(
         'Insufficient Points',
-        `You don't have enough ${listing.requiresPaidPoints ? 'paid' : 'free'} points to unlock this listing.`,
+        `You don't have enough HP to unlock this listing.`,
         [
           {
             text: 'Buy Points',
@@ -96,17 +103,42 @@ export default function ListingDetailScreen() {
     }
   };
   
-  const handleShare = () => {
-    if (Platform.OS === 'web') {
-      Alert.alert('Share', 'Sharing is not available on web');
-      return;
+  const handleShare = async () => {
+    try {
+      const result = await Share.share({
+        title: listing.title,
+        message: `Check out this property: ${listing.title} in ${listing.location} for ₦${formatPrice(listing.price)}/year. ${listing.bedrooms} bedrooms, ${listing.bathrooms} bathrooms. #Housify`,
+        url: Platform.OS === 'web' ? window.location.href : undefined
+      });
+      
+      if (result.action === Share.sharedAction) {
+        if (result.activityType) {
+          // shared with activity type of result.activityType
+          console.log('Shared with activity type:', result.activityType);
+        } else {
+          // shared
+          console.log('Shared successfully');
+        }
+      } else if (result.action === Share.dismissedAction) {
+        // dismissed
+        console.log('Share dismissed');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Could not share this listing');
+      console.error('Share error:', error);
     }
-    
-    Alert.alert('Share', 'Share functionality would be implemented here');
   };
   
   const handleSave = () => {
-    Alert.alert('Save', 'Save functionality would be implemented here');
+    if (isSaved) {
+      unsaveListing(id);
+      setIsSaved(false);
+      Alert.alert('Removed', 'Listing removed from saved listings');
+    } else {
+      saveListing(id);
+      setIsSaved(true);
+      Alert.alert('Saved', 'Listing saved successfully');
+    }
   };
   
   const handleReport = () => {
@@ -188,21 +220,27 @@ export default function ListingDetailScreen() {
         
         <View style={styles.imageActions}>
           <TouchableOpacity style={styles.imageActionButton} onPress={handleShare}>
-            <Share2 size={20} color={colors.text} />
+            <Share2 size={20} color={colors.background} />
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.imageActionButton} onPress={handleSave}>
-            <Heart size={20} color={colors.text} />
+          <TouchableOpacity 
+            style={[
+              styles.imageActionButton,
+              isSaved && styles.savedButton
+            ]} 
+            onPress={handleSave}
+          >
+            <Heart size={20} color={isSaved ? colors.secondary : colors.background} />
           </TouchableOpacity>
           
           <TouchableOpacity style={styles.imageActionButton} onPress={handleReport}>
-            <Flag size={20} color={colors.text} />
+            <Flag size={20} color={colors.background} />
           </TouchableOpacity>
         </View>
       </View>
       
       <View style={styles.detailsContainer}>
-        <Text style={styles.price}>₦{formatPrice(listing.price)}</Text>
+        <Text style={styles.price}>₦{formatPrice(listing.price)}/year</Text>
         <Text style={styles.title}>{listing.title}</Text>
         
         <View style={styles.locationContainer}>
@@ -255,13 +293,13 @@ export default function ListingDetailScreen() {
         </View>
         
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Contact Landlord</Text>
+          <Text style={styles.sectionTitle}>Contact Landlord/Agent</Text>
           
           {isUnlocked ? (
             <View style={styles.contactContainer}>
               <View style={styles.contactItem}>
                 <View style={styles.contactIconContainer}>
-                  <User size={20} color={colors.text} />
+                  <User size={20} color={colors.iconLight} />
                 </View>
                 <View>
                   <Text style={styles.contactLabel}>Name</Text>
@@ -271,7 +309,7 @@ export default function ListingDetailScreen() {
               
               <View style={styles.contactItem}>
                 <View style={styles.contactIconContainer}>
-                  <Phone size={20} color={colors.text} />
+                  <Phone size={20} color={colors.iconLight} />
                 </View>
                 <View>
                   <Text style={styles.contactLabel}>Phone</Text>
@@ -281,7 +319,7 @@ export default function ListingDetailScreen() {
               
               <View style={styles.contactItem}>
                 <View style={styles.contactIconContainer}>
-                  <Mail size={20} color={colors.text} />
+                  <Mail size={20} color={colors.iconLight} />
                 </View>
                 <View>
                   <Text style={styles.contactLabel}>Email</Text>
@@ -294,21 +332,20 @@ export default function ListingDetailScreen() {
               <View style={styles.unlockInfo}>
                 <Text style={styles.unlockTitle}>Unlock Contact Details</Text>
                 <Text style={styles.unlockDescription}>
-                  Spend {listing.pointsToUnlock} {listing.requiresPaidPoints ? 'P-Points' : 'F-Points'} to view landlord contact information
+                  Spend {listing.pointsToUnlock} HP to view landlord contact information
                 </Text>
                 
                 <View style={styles.pointsInfo}>
                   <Text style={styles.pointsLabel}>Your Balance:</Text>
                   <PointsBadge 
-                    type={listing.requiresPaidPoints ? 'paid' : 'free'} 
-                    amount={listing.requiresPaidPoints ? (user?.pPoints || 0) : (user?.fPoints || 0)}
+                    amount={user?.housePoints || 0}
                     size="small"
                   />
                 </View>
               </View>
               
               <Button
-                title={`Unlock for ${listing.pointsToUnlock} Points`}
+                title={`Unlock for ${listing.pointsToUnlock} HP`}
                 onPress={handleUnlock}
                 loading={isUnlocking}
                 disabled={!canUnlock || isUnlocking}
@@ -376,7 +413,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   activeIndicator: {
-    backgroundColor: colors.text,
+    backgroundColor: colors.background,
     width: 16,
   },
   badgeContainer: {
@@ -392,7 +429,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   verificationText: {
-    color: colors.text,
+    color: colors.background,
     fontSize: 10,
     fontWeight: 'bold',
     marginLeft: 4,
@@ -411,6 +448,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 8,
+  },
+  savedButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
   },
   detailsContainer: {
     padding: 16,

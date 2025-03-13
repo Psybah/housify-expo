@@ -1,8 +1,8 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, Image, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { PlusCircle, Coins, ArrowRight } from 'lucide-react-native';
+import { PlusCircle, Coins, ArrowRight } from "lucide-react-native";
 import { colors } from '@/constants/colors';
 import { Button } from '@/components/Button';
 import { PointsBadge } from '@/components/PointsBadge';
@@ -21,7 +21,7 @@ export default function AddScreen() {
   };
   
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <View style={styles.header}>
         <Text style={styles.title}>Add a Listing</Text>
         <Text style={styles.subtitle}>Help others find homes and earn points</Text>
@@ -39,7 +39,7 @@ export default function AddScreen() {
         
         <View style={styles.cardContent}>
           <View style={styles.iconContainer}>
-            <PlusCircle size={32} color={colors.text} />
+            <PlusCircle size={32} color={colors.iconLight} />
           </View>
           
           <Text style={styles.cardTitle}>Post a House Listing</Text>
@@ -51,17 +51,23 @@ export default function AddScreen() {
             <Text style={styles.rewardsTitle}>Earn Points:</Text>
             
             <View style={styles.rewardItem}>
-              <Coins size={16} color={colors.fPoints} />
+              <View style={styles.rewardIconContainer}>
+                <Coins size={16} color={colors.iconLight} />
+              </View>
               <Text style={styles.rewardText}>+50 points for each listing</Text>
             </View>
             
             <View style={styles.rewardItem}>
-              <Coins size={16} color={colors.fPoints} />
+              <View style={styles.rewardIconContainer}>
+                <Coins size={16} color={colors.iconLight} />
+              </View>
               <Text style={styles.rewardText}>+100 points for verified listings</Text>
             </View>
             
             <View style={styles.rewardItem}>
-              <Coins size={16} color={colors.pPoints} />
+              <View style={styles.rewardIconContainer}>
+                <Coins size={16} color={colors.iconLight} />
+              </View>
               <Text style={styles.rewardText}>Bonus when others unlock your listing</Text>
             </View>
           </View>
@@ -70,7 +76,7 @@ export default function AddScreen() {
             title="Add New Listing"
             onPress={handleAddListing}
             fullWidth
-            icon={<PlusCircle size={18} color={colors.text} />}
+            icon={<PlusCircle size={18} color={colors.iconLight} />}
           />
         </View>
       </View>
@@ -90,7 +96,7 @@ export default function AddScreen() {
           <ArrowRight size={16} color={colors.primary} />
         </TouchableOpacity>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -98,7 +104,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  contentContainer: {
     padding: 16,
+    paddingBottom: 32,
   },
   header: {
     marginBottom: 24,
@@ -176,10 +185,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 6,
   },
+  rewardIconContainer: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
   rewardText: {
     fontSize: 12,
     color: colors.textSecondary,
-    marginLeft: 8,
   },
   pointsCard: {
     backgroundColor: colors.card,

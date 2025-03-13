@@ -1,16 +1,10 @@
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 import { useFonts } from "expo-font";
-import { Stack } from "expo-router";
-import * as SplashScreen from "expo-splash-screen";
+import { Stack, SplashScreen } from "expo-router";
 import { useEffect } from "react";
 import { Platform, StatusBar } from "react-native";
 import { ErrorBoundary } from "./error-boundary";
 import { colors } from "@/constants/colors";
-
-export const unstable_settings = {
-  // Ensure that reloading on `/modal` keeps a back button present.
-  initialRouteName: "(tabs)",
-};
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -25,7 +19,7 @@ export default function RootLayout() {
       console.error(error);
       throw error;
     }
-  }, [loaded]);
+  }, [error]);
 
   useEffect(() => {
     if (loaded) {
@@ -39,51 +33,74 @@ export default function RootLayout() {
 
   return (
     <ErrorBoundary>
-      <StatusBar barStyle="light-content" backgroundColor={colors.background} />
-      <RootLayoutNav />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
+      <Stack
+        screenOptions={{
+          headerStyle: {
+            backgroundColor: colors.background,
+          },
+          headerTintColor: colors.primary,
+          headerTitleStyle: {
+            fontWeight: 'bold',
+            color: colors.primary,
+          },
+          contentStyle: {
+            backgroundColor: colors.background,
+          },
+        }}
+      >
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen 
+          name="listing/[id]" 
+          options={{ 
+            title: "Listing Details",
+            animation: 'slide_from_right',
+          }} 
+        />
+        <Stack.Screen 
+          name="add-listing" 
+          options={{ 
+            title: "Add New Listing",
+            animation: 'slide_from_bottom',
+          }} 
+        />
+        <Stack.Screen 
+          name="buy-points" 
+          options={{ 
+            title: "Buy Points",
+            animation: 'slide_from_bottom',
+          }} 
+        />
+        <Stack.Screen 
+          name="settings/account" 
+          options={{ 
+            title: "Account Settings",
+            animation: 'slide_from_right',
+          }} 
+        />
+        <Stack.Screen 
+          name="settings/notifications" 
+          options={{ 
+            title: "Notifications",
+            animation: 'slide_from_right',
+          }} 
+        />
+        <Stack.Screen 
+          name="settings/privacy" 
+          options={{ 
+            title: "Privacy & Security",
+            animation: 'slide_from_right',
+          }} 
+        />
+        <Stack.Screen 
+          name="settings/support" 
+          options={{ 
+            title: "Help & Support",
+            animation: 'slide_from_right',
+          }} 
+        />
+      </Stack>
     </ErrorBoundary>
-  );
-}
-
-function RootLayoutNav() {
-  return (
-    <Stack
-      screenOptions={{
-        headerStyle: {
-          backgroundColor: colors.background,
-        },
-        headerTintColor: colors.text,
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
-        contentStyle: {
-          backgroundColor: colors.background,
-        },
-      }}
-    >
-      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen 
-        name="listing/[id]" 
-        options={{ 
-          title: "Listing Details",
-          animation: 'slide_from_right',
-        }} 
-      />
-      <Stack.Screen 
-        name="add-listing" 
-        options={{ 
-          title: "Add New Listing",
-          animation: 'slide_from_bottom',
-        }} 
-      />
-      <Stack.Screen 
-        name="buy-points" 
-        options={{ 
-          title: "Buy Points",
-          animation: 'slide_from_bottom',
-        }} 
-      />
-    </Stack>
   );
 }

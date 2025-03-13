@@ -1,17 +1,20 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { PointsTransaction, PointsPackage } from '@/types';
+import { PointsTransaction, PointsPackage, ReferralInfo } from '@/types';
 import { useAuthStore } from './auth-store';
 
 interface PointsState {
   transactions: PointsTransaction[];
   packages: PointsPackage[];
   isLoading: boolean;
+  referralInfo: ReferralInfo;
   fetchTransactions: () => Promise<void>;
   fetchPackages: () => Promise<void>;
   addTransaction: (transaction: Omit<PointsTransaction, 'id' | 'createdAt'>) => Promise<void>;
   purchasePoints: (packageId: string) => Promise<boolean>;
+  generateReferralCode: () => Promise<string>;
+  processReferral: (referralCode: string) => Promise<boolean>;
 }
 
 export const usePointsStore = create<PointsState>()(
@@ -20,6 +23,12 @@ export const usePointsStore = create<PointsState>()(
       transactions: [],
       packages: [],
       isLoading: false,
+      referralInfo: {
+        code: '',
+        pointsPerReferral: 100,
+        totalReferred: 0,
+        pointsEarned: 0,
+      },
       
       fetchTransactions: async () => {
         set({ isLoading: true });
@@ -35,11 +44,10 @@ export const usePointsStore = create<PointsState>()(
             {
               id: '1',
               userId: user.id,
-              amount: 100,
+              amount: 50,
               type: 'earned',
               description: 'Welcome bonus',
               createdAt: new Date().toISOString(),
-              pointsType: 'free',
             },
           ];
           
@@ -56,28 +64,32 @@ export const usePointsStore = create<PointsState>()(
           // In a real app, this would be an API call
           await new Promise(resolve => setTimeout(resolve, 1000));
           
-          // Mock packages data
+          // Mock packages data based on new structure
           const mockPackages: PointsPackage[] = [
             {
               id: '1',
-              name: 'Starter Pack',
-              amount: 500,
+              name: 'Unlock One Listing',
+              amount: 100,
               price: 500,
-              bonus: 0,
+              listings: 1,
+              description: 'Unlock contact details for one property',
             },
             {
               id: '2',
-              name: 'Value Pack',
-              amount: 1200,
-              price: 1000,
-              bonus: 200,
+              name: 'Unlock Three Listings',
+              amount: 250,
+              price: 1200,
+              listings: 3,
+              popular: true,
+              description: 'Best value! Unlock three properties',
             },
             {
               id: '3',
-              name: 'Premium Pack',
-              amount: 3000,
-              price: 2500,
-              bonus: 500,
+              name: 'Unlock Five Listings',
+              amount: 400,
+              price: 1800,
+              listings: 5,
+              description: 'Unlock five properties at a discount',
             },
           ];
           
@@ -104,16 +116,14 @@ export const usePointsStore = create<PointsState>()(
           }));
           
           // Update user's points based on transaction type
-          if (transactionData.type === 'earned' || transactionData.type === 'purchased') {
-            if (transactionData.pointsType === 'free') {
-              useAuthStore.getState().updateUser({
-                fPoints: user.fPoints + transactionData.amount,
-              });
-            } else {
-              useAuthStore.getState().updateUser({
-                pPoints: user.pPoints + transactionData.amount,
-              });
-            }
+          if (transactionData.type === 'earned' || transactionData.type === 'purchased' || transactionData.type === 'referral') {
+            useAuthStore.getState().updateUser({
+              housePoints: user.housePoints + transactionData.amount,
+            });
+          } else if (transactionData.type === 'spent') {
+            useAuthStore.getState().updateUser({
+              housePoints: user.housePoints - transactionData.amount,
+            });
           }
         } catch (error) {
           console.error('Add transaction error:', error);
@@ -139,7 +149,6 @@ export const usePointsStore = create<PointsState>()(
             amount: packageData.amount,
             type: 'purchased',
             description: `Purchased ${packageData.name}`,
-            pointsType: 'paid',
           });
           
           set({ isLoading: false });
@@ -147,6 +156,75 @@ export const usePointsStore = create<PointsState>()(
         } catch (error) {
           console.error('Purchase points error:', error);
           set({ isLoading: false });
+          return false;
+        }
+      },
+      
+      generateReferralCode: async () => {
+        try {
+          const user = useAuthStore.getState().user;
+          if (!user) throw new Error('User not authenticated');
+          
+          // If user already has a referral code, return it
+          if (user.referralCode) {
+            return user.referralCode;
+          }
+          
+          // Generate a random code
+          const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+          let code = '';
+          for (let i = 0; i < 6; i++) {
+            code += characters.charAt(Math.floor(Math.random() * characters.length));
+          }
+          
+          // Add user's first initial to make it more personal
+          const firstInitial = user.name.charAt(0).toUpperCase();
+          const referralCode = `${firstInitial}${code}`;
+          
+          // Update user with the new referral code
+          useAuthStore.getState().updateUser({
+            referralCode,
+          });
+          
+          return referralCode;
+        } catch (error) {
+          console.error('Generate referral code error:', error);
+          throw error;
+        }
+      },
+      
+      processReferral: async (referralCode) => {
+        try {
+          const user = useAuthStore.getState().user;
+          if (!user) throw new Error('User not authenticated');
+          
+          // In a real app, this would validate the referral code against a database
+          // For now, we'll just simulate success
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Add points to the referrer (in a real app, this would be done server-side)
+          const pointsPerReferral = get().referralInfo.pointsPerReferral;
+          
+          // Update referral info
+          set((state) => ({
+            referralInfo: {
+              ...state.referralInfo,
+              totalReferred: state.referralInfo.totalReferred + 1,
+              pointsEarned: state.referralInfo.pointsEarned + pointsPerReferral,
+            }
+          }));
+          
+          // Add transaction for the referral
+          await get().addTransaction({
+            userId: user.id,
+            amount: pointsPerReferral,
+            type: 'referral',
+            description: 'Referral bonus',
+          });
+          
+          return true;
+        } catch (error) {
+          console.error('Process referral error:', error);
           return false;
         }
       },

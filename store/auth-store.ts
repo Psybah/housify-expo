@@ -7,8 +7,8 @@ interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, phone: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<boolean>;
+  register: (userData: Partial<User>) => Promise<boolean>;
   logout: () => void;
   updateUser: (userData: Partial<User>) => void;
 }
@@ -24,52 +24,52 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true });
         try {
           // In a real app, this would be an API call
-          // For demo, we'll simulate a successful login
           await new Promise(resolve => setTimeout(resolve, 1000));
           
           // Mock user data
           const user: User = {
             id: '1',
             name: 'John Doe',
-            email,
-            phone: '+1234567890',
-            fPoints: 100, // Start with free points
-            pPoints: 0,
+            email: email,
+            phone: '+2348012345678',
+            housePoints: 50, // Starting with 50 HP
             createdAt: new Date().toISOString(),
             listings: [],
           };
           
           set({ user, isAuthenticated: true, isLoading: false });
+          return true;
         } catch (error) {
           console.error('Login error:', error);
           set({ isLoading: false });
-          throw error;
+          return false;
         }
       },
       
-      register: async (name, email, phone, password) => {
+      register: async (userData) => {
         set({ isLoading: true });
         try {
           // In a real app, this would be an API call
           await new Promise(resolve => setTimeout(resolve, 1000));
           
-          // Create new user with initial free points
-          const user: User = {
+          // Create a new user with default values
+          const newUser: User = {
             id: Date.now().toString(),
-            name,
-            email,
-            phone,
-            fPoints: 100, // Start with free points
-            pPoints: 0,
+            name: userData.name || 'New User',
+            email: userData.email || '',
+            phone: userData.phone || '',
+            housePoints: 50, // Starting with 50 HP
             createdAt: new Date().toISOString(),
             listings: [],
+            ...userData,
           };
           
-          set({ user, isAuthenticated: true, isLoading: false });
+          set({ user: newUser, isAuthenticated: true, isLoading: false });
+          return true;
         } catch (error) {
-          console.error('Registration error:', error);
+          console.error('Register error:', error);
           set({ isLoading: false });
-          throw error;
+          return false;
         }
       },
       

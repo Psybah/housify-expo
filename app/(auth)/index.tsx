@@ -1,8 +1,8 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, Image, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Home, User, Coins } from 'lucide-react-native';
+import { Home, User, Coins } from "lucide-react-native";
 import { colors } from '@/constants/colors';
 import { Button } from '@/components/Button';
 import { useAuthStore } from '@/store/auth-store';
@@ -13,12 +13,7 @@ export default function WelcomeScreen() {
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
   
-  useEffect(() => {
-    // If user is already authenticated, redirect to main app
-    if (isAuthenticated) {
-      router.replace('/(tabs)');
-    }
-  }, [isAuthenticated]);
+  // Remove the automatic navigation and let the user click buttons instead
   
   const handleLogin = () => {
     router.push('/login');
@@ -26,6 +21,11 @@ export default function WelcomeScreen() {
   
   const handleRegister = () => {
     router.push('/register');
+  };
+  
+  // If user is already authenticated, show a different button
+  const handleContinue = () => {
+    router.replace('/(tabs)');
   };
   
   return (
@@ -36,7 +36,7 @@ export default function WelcomeScreen() {
       />
       
       <LinearGradient
-        colors={['transparent', 'rgba(18, 18, 18, 0.8)', colors.background]}
+        colors={['transparent', 'rgba(255, 255, 255, 0.8)', colors.background]}
         style={styles.gradient}
       />
       
@@ -50,8 +50,8 @@ export default function WelcomeScreen() {
         
         <View style={styles.featuresContainer}>
           <View style={styles.featureItem}>
-            <View style={styles.featureIcon}>
-              <Home size={24} color={colors.text} />
+            <View style={[styles.featureIcon, { backgroundColor: colors.primary }]}>
+              <Home size={24} color={colors.background} />
             </View>
             <View style={styles.featureTextContainer}>
               <Text style={styles.featureTitle}>Post Listings</Text>
@@ -60,8 +60,8 @@ export default function WelcomeScreen() {
           </View>
           
           <View style={styles.featureItem}>
-            <View style={styles.featureIcon}>
-              <Coins size={24} color={colors.text} />
+            <View style={[styles.featureIcon, { backgroundColor: colors.secondary }]}>
+              <Coins size={24} color={colors.background} />
             </View>
             <View style={styles.featureTextContainer}>
               <Text style={styles.featureTitle}>Earn Points</Text>
@@ -70,8 +70,8 @@ export default function WelcomeScreen() {
           </View>
           
           <View style={styles.featureItem}>
-            <View style={styles.featureIcon}>
-              <User size={24} color={colors.text} />
+            <View style={[styles.featureIcon, { backgroundColor: colors.primary }]}>
+              <User size={24} color={colors.background} />
             </View>
             <View style={styles.featureTextContainer}>
               <Text style={styles.featureTitle}>Connect Directly</Text>
@@ -82,22 +82,34 @@ export default function WelcomeScreen() {
       </View>
       
       <View style={styles.footer}>
-        <Button
-          title="Create Account"
-          onPress={handleRegister}
-          fullWidth
-          size="large"
-          style={styles.registerButton}
-        />
-        
-        <Button
-          title="Log In"
-          onPress={handleLogin}
-          variant="outline"
-          fullWidth
-          size="large"
-          style={styles.loginButton}
-        />
+        {isAuthenticated ? (
+          <Button
+            title="Continue to App"
+            onPress={handleContinue}
+            fullWidth
+            size="large"
+            style={styles.registerButton}
+          />
+        ) : (
+          <>
+            <Button
+              title="Create Account"
+              onPress={handleRegister}
+              fullWidth
+              size="large"
+              style={styles.registerButton}
+            />
+            
+            <Button
+              title="Log In"
+              onPress={handleLogin}
+              variant="outline"
+              fullWidth
+              size="large"
+              style={styles.loginButton}
+            />
+          </>
+        )}
       </View>
     </View>
   );
@@ -134,7 +146,7 @@ const styles = StyleSheet.create({
   logoText: {
     fontSize: 36,
     fontWeight: 'bold',
-    color: colors.text,
+    color: colors.primary,
     marginLeft: 12,
   },
   tagline: {
@@ -155,7 +167,6 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,

@@ -26,10 +26,11 @@ type FilterBarProps = {
     bedrooms?: number;
     verified?: boolean;
   }) => void;
+  modalVisible: boolean;
+  setModalVisible: (visible: boolean) => void;
 };
 
-export const FilterBar = ({ onApplyFilters }: FilterBarProps) => {
-  const [modalVisible, setModalVisible] = useState(false);
+export const FilterBar = ({ onApplyFilters, modalVisible, setModalVisible }: FilterBarProps) => {
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
   
   // Filter state
@@ -40,11 +41,19 @@ export const FilterBar = ({ onApplyFilters }: FilterBarProps) => {
   const [verified, setVerified] = useState<boolean | undefined>(undefined);
   
   const locationOptions: FilterOption[] = [
-    { label: 'Downtown', value: 'Downtown' },
-    { label: 'Westside', value: 'Westside' },
-    { label: 'Suburbs', value: 'Suburbs' },
-    { label: 'Eastside', value: 'Eastside' },
-    { label: 'Northside', value: 'Northside' },
+    { label: 'Lekki', value: 'Lekki' },
+    { label: 'Yaba', value: 'Yaba' },
+    { label: 'Ikeja GRA', value: 'Ikeja GRA' },
+    { label: 'Victoria Island', value: 'Victoria Island' },
+    { label: 'Surulere', value: 'Surulere' },
+    { label: 'Ikoyi', value: 'Ikoyi' },
+    { label: 'Ajah', value: 'Ajah' },
+    { label: 'Magodo', value: 'Magodo' },
+    { label: 'Maitama', value: 'Maitama' },
+    { label: 'Asokoro', value: 'Asokoro' },
+    { label: 'Banana Island', value: 'Banana Island' },
+    { label: 'Ojodu', value: 'Ojodu' },
+    { label: 'GRA Enugu', value: 'GRA Enugu' },
   ];
   
   const bedroomOptions: FilterOption[] = [
@@ -52,6 +61,7 @@ export const FilterBar = ({ onApplyFilters }: FilterBarProps) => {
     { label: '2+', value: '2' },
     { label: '3+', value: '3' },
     { label: '4+', value: '4' },
+    { label: '5+', value: '5' },
   ];
   
   const handleApplyFilters = () => {
@@ -94,53 +104,8 @@ export const FilterBar = ({ onApplyFilters }: FilterBarProps) => {
     onApplyFilters({});
   };
   
-  const renderFilterChips = () => {
-    if (activeFilters.length === 0) {
-      return (
-        <TouchableOpacity 
-          style={styles.filterButton} 
-          onPress={() => setModalVisible(true)}
-        >
-          <Filter size={16} color={colors.text} />
-          <Text style={styles.filterButtonText}>Filter</Text>
-        </TouchableOpacity>
-      );
-    }
-    
-    return (
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chipsContainer}
-      >
-        {activeFilters.map((filter, index) => (
-          <View key={index} style={styles.chip}>
-            <Text style={styles.chipText}>{filter}</Text>
-          </View>
-        ))}
-        
-        <TouchableOpacity 
-          style={styles.resetButton} 
-          onPress={handleResetFilters}
-        >
-          <X size={14} color={colors.text} />
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.filterButton} 
-          onPress={() => setModalVisible(true)}
-        >
-          <Filter size={16} color={colors.text} />
-          <Text style={styles.filterButtonText}>Filter</Text>
-        </TouchableOpacity>
-      </ScrollView>
-    );
-  };
-  
   return (
-    <View style={styles.container}>
-      {renderFilterChips()}
-      
+    <View>
       <Modal
         animationType="slide"
         transparent={true}
@@ -170,7 +135,7 @@ export const FilterBar = ({ onApplyFilters }: FilterBarProps) => {
                   >
                     <MapPin 
                       size={16} 
-                      color={location === option.value ? colors.text : colors.textSecondary} 
+                      color={location === option.value ? colors.background : colors.textSecondary} 
                     />
                     <Text 
                       style={[
@@ -181,13 +146,13 @@ export const FilterBar = ({ onApplyFilters }: FilterBarProps) => {
                       {option.label}
                     </Text>
                     {location === option.value && (
-                      <Check size={16} color={colors.text} />
+                      <Check size={16} color={colors.background} />
                     )}
                   </TouchableOpacity>
                 ))}
               </View>
               
-              <Text style={styles.sectionTitle}>Price Range</Text>
+              <Text style={styles.sectionTitle}>Price Range (₦)</Text>
               <View style={styles.priceContainer}>
                 <Input
                   placeholder="Min Price"
@@ -221,7 +186,7 @@ export const FilterBar = ({ onApplyFilters }: FilterBarProps) => {
                   >
                     <Bed 
                       size={16} 
-                      color={bedrooms === option.value ? colors.text : colors.textSecondary} 
+                      color={bedrooms === option.value ? colors.background : colors.textSecondary} 
                     />
                     <Text 
                       style={[
@@ -232,7 +197,7 @@ export const FilterBar = ({ onApplyFilters }: FilterBarProps) => {
                       {option.label}
                     </Text>
                     {bedrooms === option.value && (
-                      <Check size={16} color={colors.text} />
+                      <Check size={16} color={colors.background} />
                     )}
                   </TouchableOpacity>
                 ))}
@@ -249,7 +214,7 @@ export const FilterBar = ({ onApplyFilters }: FilterBarProps) => {
                 >
                   <CheckCircle 
                     size={16} 
-                    color={verified === true ? colors.text : colors.textSecondary} 
+                    color={verified === true ? colors.background : colors.textSecondary} 
                   />
                   <Text 
                     style={[
@@ -260,7 +225,7 @@ export const FilterBar = ({ onApplyFilters }: FilterBarProps) => {
                     Verified
                   </Text>
                   {verified === true && (
-                    <Check size={16} color={colors.text} />
+                    <Check size={16} color={colors.background} />
                   )}
                 </TouchableOpacity>
                 
@@ -273,7 +238,7 @@ export const FilterBar = ({ onApplyFilters }: FilterBarProps) => {
                 >
                   <Home 
                     size={16} 
-                    color={verified === false ? colors.text : colors.textSecondary} 
+                    color={verified === false ? colors.background : colors.textSecondary} 
                   />
                   <Text 
                     style={[
@@ -284,7 +249,7 @@ export const FilterBar = ({ onApplyFilters }: FilterBarProps) => {
                     Unverified
                   </Text>
                   {verified === false && (
-                    <Check size={16} color={colors.text} />
+                    <Check size={16} color={colors.background} />
                   )}
                 </TouchableOpacity>
               </View>
@@ -351,7 +316,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   filterButtonText: {
-    color: colors.text,
+    color: colors.background,
     fontSize: 12,
     fontWeight: 'bold',
     marginLeft: 4,
@@ -424,7 +389,7 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   optionTextActive: {
-    color: colors.text,
+    color: colors.background,
     fontWeight: 'bold',
   },
   priceContainer: {

@@ -8,9 +8,10 @@ export default function AuthLayout() {
         headerStyle: {
           backgroundColor: colors.background,
         },
-        headerTintColor: colors.text,
+        headerTintColor: colors.primary,
         headerTitleStyle: {
           fontWeight: 'bold',
+          color: colors.primary,
         },
         contentStyle: {
           backgroundColor: colors.background,

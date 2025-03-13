@@ -2,9 +2,10 @@ import React from 'react';
 import { View, Text, StyleSheet, Pressable, Image, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Home, MapPin, Bed, Bath, Check, AlertTriangle } from 'lucide-react-native';
+import { Home, MapPin, Bed, Bath, Check, AlertTriangle, Heart } from 'lucide-react-native';
 import { Listing } from '@/types';
 import { colors } from '@/constants/colors';
+import { useListingsStore } from '@/store/listings-store';
 
 type ListingCardProps = {
   listing: Listing;
@@ -17,9 +18,21 @@ const compactCardWidth = width * 0.7;
 
 export const ListingCard = ({ listing, compact = false }: ListingCardProps) => {
   const router = useRouter();
+  const { isListingSaved, saveListing, unsaveListing } = useListingsStore();
+  
+  const isSaved = isListingSaved(listing.id);
   
   const handlePress = () => {
     router.push(`/listing/${listing.id}`);
+  };
+  
+  const handleSave = (e: any) => {
+    e.stopPropagation();
+    if (isSaved) {
+      unsaveListing(listing.id);
+    } else {
+      saveListing(listing.id);
+    }
   };
   
   const formatPrice = (price: number) => {
@@ -45,7 +58,7 @@ export const ListingCard = ({ listing, compact = false }: ListingCardProps) => {
           style={styles.gradient}
         />
         <View style={styles.priceContainer}>
-          <Text style={styles.price}>₦{formatPrice(listing.price)}</Text>
+          <Text style={styles.price}>₦{formatPrice(listing.price)}/yr</Text>
         </View>
         <View style={[
           styles.verificationBadge, 
@@ -60,6 +73,16 @@ export const ListingCard = ({ listing, compact = false }: ListingCardProps) => {
             {listing.verified ? 'Verified' : 'Unverified'}
           </Text>
         </View>
+        
+        <Pressable 
+          style={[
+            styles.saveButton,
+            isSaved && styles.savedButton
+          ]} 
+          onPress={handleSave}
+        >
+          <Heart size={16} color={isSaved ? colors.secondary : colors.background} />
+        </Pressable>
       </View>
       
       <View style={styles.contentContainer}>
@@ -138,14 +161,14 @@ const styles = StyleSheet.create({
     left: 8,
   },
   price: {
-    color: colors.text,
+    color: colors.background,
     fontSize: 18,
     fontWeight: 'bold',
   },
   verificationBadge: {
     position: 'absolute',
     top: 8,
-    right: 8,
+    left: 8,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
@@ -153,10 +176,24 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   verificationText: {
-    color: colors.text,
+    color: colors.background,
     fontSize: 10,
     fontWeight: 'bold',
     marginLeft: 4,
+  },
+  saveButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  savedButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
   },
   contentContainer: {
     padding: 12,

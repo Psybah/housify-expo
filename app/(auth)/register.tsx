@@ -45,6 +45,8 @@ export default function RegisterScreen() {
     
     if (!phone) {
       newErrors.phone = 'Phone number is required';
+    } else if (!/^(\+234|0)[0-9]{10}$/.test(phone.replace(/\s/g, ''))) {
+      newErrors.phone = 'Enter a valid Nigerian phone number';
     }
     
     if (!password) {
@@ -117,7 +119,7 @@ export default function RegisterScreen() {
           
           <Input
             label="Phone Number"
-            placeholder="Enter your phone number"
+            placeholder="Enter your phone number (e.g. +2348012345678)"
             value={phone}
             onChangeText={setPhone}
             keyboardType="phone-pad"

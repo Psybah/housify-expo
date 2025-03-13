@@ -1,7 +1,7 @@
-import React from "react";
-import { Tabs } from "expo-router";
-import { Home, Search, PlusCircle, Coins, User } from "lucide-react-native";
-import { colors } from "@/constants/colors";
+import React from 'react';
+import { Tabs } from 'expo-router';
+import { Home, Search, PlusCircle, Award, User } from 'lucide-react-native';
+import { colors } from '@/constants/colors';
 
 export default function TabLayout() {
   return (
@@ -13,13 +13,10 @@ export default function TabLayout() {
           backgroundColor: colors.background,
           borderTopColor: colors.border,
         },
-        tabBarLabelStyle: {
-          fontSize: 12,
-        },
         headerStyle: {
           backgroundColor: colors.background,
         },
-        headerTintColor: colors.text,
+        headerTintColor: colors.primary,
         headerTitleStyle: {
           fontWeight: 'bold',
         },
@@ -28,40 +25,35 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Home",
+          title: 'Home',
           tabBarIcon: ({ color }) => <Home size={24} color={color} />,
         }}
       />
-      
       <Tabs.Screen
         name="search"
         options={{
-          title: "Search",
+          title: 'Search',
           tabBarIcon: ({ color }) => <Search size={24} color={color} />,
         }}
       />
-      
       <Tabs.Screen
         name="add"
         options={{
-          title: "Add",
+          title: 'Add',
           tabBarIcon: ({ color }) => <PlusCircle size={24} color={color} />,
-          headerShown: false,
         }}
       />
-      
       <Tabs.Screen
         name="points"
         options={{
-          title: "Points",
-          tabBarIcon: ({ color }) => <Coins size={24} color={color} />,
+          title: 'Points',
+          tabBarIcon: ({ color }) => <Award size={24} color={color} />,
         }}
       />
-      
       <Tabs.Screen
         name="profile"
         options={{
-          title: "Profile",
+          title: 'Profile',
           tabBarIcon: ({ color }) => <User size={24} color={color} />,
         }}
       />
