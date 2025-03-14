@@ -1,329 +1,275 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, Image } from 'react-native';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  ScrollView, 
+  RefreshControl,
+  TouchableOpacity,
+  StatusBar
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Home, TrendingUp, CheckCircle, Plus, Coins, Search } from "lucide-react-native";
-import { colors } from '@/constants/colors';
-import { ListingCard } from '@/components/ListingCard';
-import { PointsBadge } from '@/components/PointsBadge';
-import { useAuthStore } from '@/store/auth-store';
-import { useListingsStore } from '@/store/listings-store';
+import { Bell, Search, MapPin } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
+import { Colors } from '@/constants/colors';
+import { PropertyCard } from '@/components/PropertyCard';
+import { PointsCard } from '@/components/PointsCard';
+import { PointsEarnedModal } from '@/components/PointsEarnedModal';
+import { usePropertyStore } from '@/store/property-store';
+import { useAuthStore } from '@/store/auth-store';
+import { Property } from '@/types/property';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { user } = useAuthStore();
-  const { listings, fetchListings, isLoading } = useListingsStore();
-  
+  const { properties, fetchProperties, savedProperties, saveProperty, unsaveProperty } = usePropertyStore();
+  const { 
+    user, 
+    showPointsEarnedModal, 
+    pointsEarnedAmount, 
+    pointsEarnedReason, 
+    hidePointsEarnedModal 
+  } = useAuthStore();
   const [refreshing, setRefreshing] = useState(false);
+  const [featuredProperties, setFeaturedProperties] = useState<Property[]>([]);
+  const [recentProperties, setRecentProperties] = useState<Property[]>([]);
   
   useEffect(() => {
-    fetchListings();
+    fetchProperties();
   }, []);
+  
+  useEffect(() => {
+    if (properties.length > 0) {
+      // Get top properties for featured section
+      setFeaturedProperties(properties.slice(0, 3));
+      
+      // Get recent properties
+      const sorted = [...properties].sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      setRecentProperties(sorted.slice(0, 5));
+    }
+  }, [properties]);
   
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchListings();
+    await fetchProperties();
     setRefreshing(false);
   };
   
-  const verifiedListings = listings.filter(listing => listing.verified);
-  const recentListings = [...listings].sort((a, b) => 
-    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  ).slice(0, 5);
-  
-  const handleAddListing = () => {
-    router.push('/add-listing');
+  const handleToggleSave = (propertyId: string) => {
+    if (savedProperties.includes(propertyId)) {
+      unsaveProperty(propertyId);
+    } else {
+      saveProperty(propertyId);
+    }
   };
   
-  const handleViewAll = (category: string) => {
-    router.push({
-      pathname: '/search',
-      params: { category },
-    });
+  const navigateToSearch = () => {
+    router.push('/search');
   };
   
-  // Get first name for greeting
-  const firstName = user?.name?.split(' ')[0] || 'User';
-  const timeOfDay = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
+  const navigateToNotifications = () => {
+    // Placeholder for notifications screen
+    console.log('Navigate to notifications');
   };
   
   return (
-    <ScrollView 
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
-      <View style={styles.header}>
-        <View style={styles.headerContent}>
-          <View style={styles.greetingContainer}>
-            <Text style={styles.greeting}>{timeOfDay()},</Text>
-            <Text style={styles.userName}>{firstName}</Text>
+    <SafeAreaView style={styles.container} edges={['right', 'left', 'top', 'bottom']}>
+      <StatusBar barStyle="dark-content" backgroundColor={Colors.background.primary} />
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.greeting}>Hello, {user?.name?.split(' ')[0] || 'Guest'}</Text>
+            <Text style={styles.subGreeting}>Find your perfect home</Text>
           </View>
-          <Text style={styles.subtitle}>Find your perfect home today</Text>
+          
+          <TouchableOpacity 
+            style={styles.notificationButton}
+            onPress={navigateToNotifications}
+          >
+            <Bell size={24} color={Colors.text.primary} />
+            <View style={styles.notificationBadge} />
+          </TouchableOpacity>
         </View>
         
-        <View style={styles.profileContainer}>
-          <TouchableOpacity 
-            style={styles.profileButton}
-            onPress={() => router.push('/(tabs)/profile')}
+        <TouchableOpacity 
+          style={styles.searchBar}
+          onPress={navigateToSearch}
+        >
+          <Search size={20} color={Colors.neutral.gray} />
+          <Text style={styles.searchPlaceholder}>Search for properties...</Text>
+        </TouchableOpacity>
+        
+        {user && (
+          <PointsCard 
+            points={user.points}
+            onBuyPoints={() => router.push('/points')}
+          />
+        )}
+        
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Featured Properties</Text>
+          <Text style={styles.sectionSubtitle}>Verified and handpicked properties</Text>
+          
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.featuredContainer}
           >
-            {user?.profileImage ? (
-              <Image 
-                source={{ uri: user.profileImage }} 
-                style={styles.profileImage} 
-              />
+            {featuredProperties.length > 0 ? (
+              featuredProperties.map((property) => (
+                <TouchableOpacity 
+                  key={property.id}
+                  style={styles.featuredItem}
+                  onPress={() => router.push(`/property/${property.id}`)}
+                >
+                  <Image
+                    source={{ uri: property.images[0] }}
+                    style={styles.featuredImage}
+                    contentFit="cover"
+                  />
+                  <LinearGradient
+                    colors={['transparent', 'rgba(0,0,0,0.8)']}
+                    style={styles.featuredGradient}
+                  />
+                  <View style={styles.featuredContent}>
+                    <Text style={styles.featuredPrice}>
+                      ₦{property.price.toLocaleString('en-NG')}/yr
+                    </Text>
+                    <Text style={styles.featuredTitle} numberOfLines={1}>
+                      {property.title}
+                    </Text>
+                    <View style={styles.featuredLocation}>
+                      <MapPin size={12} color={Colors.neutral.white} />
+                      <Text style={styles.featuredLocationText} numberOfLines={1}>
+                        {property.location.city}, {property.location.state}
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))
             ) : (
-              <View style={styles.profilePlaceholder}>
-                <Text style={styles.profileInitial}>
-                  {firstName.charAt(0).toUpperCase()}
-                </Text>
+              <View style={styles.emptyFeatured}>
+                <Text style={styles.emptyText}>No featured properties available</Text>
               </View>
             )}
-          </TouchableOpacity>
+          </ScrollView>
         </View>
-      </View>
-      
-      <View style={styles.pointsRow}>
-        <PointsBadge type="free" amount={user?.fPoints || 0} size="small" />
-        <View style={styles.pointsSpacer} />
-        <PointsBadge type="paid" amount={user?.pPoints || 0} size="small" />
-      </View>
-      
-      {/* Redesigned Quick Actions */}
-      <View style={styles.quickActionsContainer}>
-        <TouchableOpacity 
-          style={styles.actionCard}
-          onPress={handleAddListing}
-        >
-          <LinearGradient
-            colors={[colors.primary, '#034694']}
-            style={styles.actionGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-          >
-            <View style={styles.actionIconContainer}>
-              <Plus size={24} color={colors.background} />
-            </View>
-            <Text style={styles.actionTitle}>Add Listing</Text>
-            <Text style={styles.actionSubtitle}>Post a new property</Text>
-          </LinearGradient>
-        </TouchableOpacity>
         
-        <TouchableOpacity 
-          style={styles.actionCard}
-          onPress={() => router.push('/buy-points')}
-        >
-          <LinearGradient
-            colors={['#034694', colors.primary]}
-            style={styles.actionGradient}
-            start={{ x: 1, y: 0 }}
-            end={{ x: 0, y: 1 }}
-          >
-            <View style={styles.actionIconContainer}>
-              <Coins size={24} color={colors.background} />
-            </View>
-            <Text style={styles.actionTitle}>Buy Points</Text>
-            <Text style={styles.actionSubtitle}>Get more access</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.actionCard}
-          onPress={() => router.push('/search')}
-        >
-          <LinearGradient
-            colors={[colors.primary, '#034694']}
-            style={styles.actionGradient}
-            start={{ x: 0, y: 1 }}
-            end={{ x: 1, y: 0 }}
-          >
-            <View style={styles.actionIconContainer}>
-              <Search size={24} color={colors.background} />
-            </View>
-            <Text style={styles.actionTitle}>Search</Text>
-            <Text style={styles.actionSubtitle}>Find properties</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-      </View>
-      
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <View style={styles.sectionTitleContainer}>
-            <CheckCircle size={20} color={colors.verified} />
-            <Text style={styles.sectionTitle}>Verified Listings</Text>
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Recent Properties</Text>
+            <TouchableOpacity onPress={navigateToSearch}>
+              <Text style={styles.seeAllText}>See All</Text>
+            </TouchableOpacity>
           </View>
           
-          <TouchableOpacity onPress={() => handleViewAll('verified')}>
-            <Text style={styles.viewAllText}>View All</Text>
-          </TouchableOpacity>
-        </View>
-        
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.listingsContainer}
-        >
-          {verifiedListings.length > 0 ? (
-            verifiedListings.map(listing => (
-              <ListingCard key={listing.id} listing={listing} compact />
-            ))
-          ) : (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No verified listings available</Text>
-            </View>
-          )}
-        </ScrollView>
-      </View>
-      
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <View style={styles.sectionTitleContainer}>
-            <TrendingUp size={20} color={colors.accent} />
-            <Text style={styles.sectionTitle}>Recent Listings</Text>
+          <View style={styles.propertiesList}>
+            {recentProperties.length > 0 ? (
+              recentProperties.map((property) => (
+                <PropertyCard
+                  key={property.id}
+                  property={property}
+                  onSave={() => handleToggleSave(property.id)}
+                  saved={savedProperties.includes(property.id)}
+                />
+              ))
+            ) : (
+              <View style={styles.emptyRecent}>
+                <Text style={styles.emptyTitle}>No verified properties yet</Text>
+                <Text style={styles.emptyText}>
+                  Be the first to add a verified property and earn Housify Points!
+                </Text>
+                <Button 
+                  title="Add Property" 
+                  onPress={() => router.push('/add-listing')}
+                  style={styles.emptyButton}
+                />
+              </View>
+            )}
           </View>
-          
-          <TouchableOpacity onPress={() => handleViewAll('recent')}>
-            <Text style={styles.viewAllText}>View All</Text>
-          </TouchableOpacity>
         </View>
-        
-        <View style={styles.recentListingsContainer}>
-          {recentListings.length > 0 ? (
-            recentListings.map(listing => (
-              <ListingCard key={listing.id} listing={listing} />
-            ))
-          ) : (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No recent listings available</Text>
-            </View>
-          )}
-        </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+      
+      <PointsEarnedModal
+        visible={showPointsEarnedModal}
+        onClose={hidePointsEarnedModal}
+        points={pointsEarnedAmount}
+        reason={pointsEarnedReason}
+      />
+    </SafeAreaView>
   );
 }
+
+// Import Button component
+import { Button } from '@/components/Button';
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
-  },
-  contentContainer: {
-    padding: 16,
+    backgroundColor: Colors.background.primary,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
-  },
-  headerContent: {
-    flex: 1,
-  },
-  greetingContainer: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    flexWrap: 'wrap',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
   },
   greeting: {
-    fontSize: 18,
-    fontWeight: '500',
-    color: colors.textSecondary,
-    marginRight: 6,
-  },
-  userName: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: colors.primary,
+    fontWeight: '700',
+    color: Colors.text.primary,
   },
-  subtitle: {
+  subGreeting: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: Colors.text.secondary,
     marginTop: 4,
   },
-  profileContainer: {
-    marginLeft: 12,
-  },
-  profileButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    overflow: 'hidden',
-    backgroundColor: colors.primary,
-  },
-  profileImage: {
-    width: '100%',
-    height: '100%',
-  },
-  profilePlaceholder: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.primary,
-  },
-  profileInitial: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: colors.background,
-  },
-  pointsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  pointsSpacer: {
-    width: 8,
-  },
-  // New styles for redesigned quick actions
-  quickActionsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 24,
-  },
-  actionCard: {
-    width: '31%',
-    height: 120,
-    borderRadius: 16,
-    overflow: 'hidden',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  actionGradient: {
-    width: '100%',
-    height: '100%',
-    padding: 12,
-    justifyContent: 'space-between',
-  },
-  actionIconContainer: {
+  notificationButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
+    backgroundColor: Colors.background.card,
     alignItems: 'center',
-    marginBottom: 8,
+    justifyContent: 'center',
+    position: 'relative',
   },
-  actionTitle: {
-    color: colors.background,
+  notificationBadge: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.accent.main,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.background.card,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 8,
+  },
+  searchPlaceholder: {
     fontSize: 14,
-    fontWeight: 'bold',
-  },
-  actionSubtitle: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 12,
+    color: Colors.neutral.gray,
+    flex: 1,
   },
   section: {
-    marginBottom: 24,
+    marginTop: 24,
+    paddingHorizontal: 16,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -331,37 +277,106 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
-  sectionTitleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginLeft: 8,
+    fontWeight: '600',
+    color: Colors.text.primary,
   },
-  viewAllText: {
+  sectionSubtitle: {
     fontSize: 14,
-    color: colors.primary,
+    color: Colors.text.secondary,
+    marginTop: 4,
+    marginBottom: 16,
+  },
+  seeAllText: {
+    fontSize: 14,
+    color: Colors.primary.main,
     fontWeight: '500',
   },
-  listingsContainer: {
+  featuredContainer: {
     paddingRight: 16,
+    gap: 16,
   },
-  recentListingsContainer: {
-    width: '100%',
+  featuredItem: {
+    width: 280,
+    height: 180,
+    borderRadius: 16,
+    overflow: 'hidden',
+    position: 'relative',
   },
-  emptyContainer: {
+  featuredImage: {
     width: '100%',
+    height: '100%',
+  },
+  featuredGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 100,
+  },
+  featuredContent: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 16,
+  },
+  featuredPrice: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Colors.neutral.white,
+    marginBottom: 4,
+  },
+  featuredTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.neutral.white,
+    marginBottom: 4,
+  },
+  featuredLocation: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  featuredLocationText: {
+    fontSize: 12,
+    color: Colors.neutral.white,
+    opacity: 0.8,
+  },
+  propertiesList: {
+    marginBottom: 24,
+  },
+  emptyFeatured: {
+    width: 280,
+    height: 180,
+    borderRadius: 16,
+    backgroundColor: Colors.background.card,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  emptyRecent: {
+    backgroundColor: Colors.background.card,
+    borderRadius: 16,
     padding: 24,
-    backgroundColor: colors.card,
-    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.text.primary,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
   emptyText: {
-    color: colors.textSecondary,
     fontSize: 14,
+    color: Colors.text.secondary,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  emptyButton: {
+    marginTop: 8,
   },
 });

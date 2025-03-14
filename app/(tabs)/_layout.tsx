@@ -1,87 +1,67 @@
-import React, { useEffect, useState } from 'react';
-import { Tabs, useRouter } from 'expo-router';
-import { Home, Search, PlusCircle, Award, User } from 'lucide-react-native';
-import { colors } from '@/constants/colors';
-import { useAuthStore } from '@/store/auth-store';
+import React from 'react';
+import { Tabs } from 'expo-router';
+import { Home, Search, PlusCircle, Coins, User } from 'lucide-react-native';
+import { Colors } from '@/constants/colors';
 
 export default function TabLayout() {
-  const router = useRouter();
-  const { isAuthenticated } = useAuthStore();
-  const [initialRenderComplete, setInitialRenderComplete] = useState(false);
-  
-  // Set initialRenderComplete to true after the first render
-  useEffect(() => {
-    // Use requestAnimationFrame to ensure we're past the initial render
-    const timer = requestAnimationFrame(() => {
-      setInitialRenderComplete(true);
-    });
-    
-    return () => cancelAnimationFrame(timer);
-  }, []);
-  
-  // Check authentication status after initial render is complete
-  useEffect(() => {
-    if (initialRenderComplete && !isAuthenticated) {
-      // Use setTimeout to ensure we're not navigating during render
-      const timer = setTimeout(() => {
-        router.replace('/(auth)');
-      }, 0);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [initialRenderComplete, isAuthenticated, router]);
-  
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textSecondary,
+        tabBarActiveTintColor: Colors.primary.main,
+        tabBarInactiveTintColor: Colors.neutral.gray,
         tabBarStyle: {
-          backgroundColor: colors.background,
-          borderTopColor: colors.border,
+          borderTopColor: Colors.neutral.lightGray,
+          height: 60,
+          paddingBottom: 8,
+          paddingTop: 8,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '500',
         },
         headerStyle: {
-          backgroundColor: colors.background,
+          backgroundColor: Colors.background.card,
         },
-        headerTintColor: colors.primary,
         headerTitleStyle: {
-          fontWeight: 'bold',
+          color: Colors.text.primary,
+          fontWeight: '600',
         },
+        headerShown: false,
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => <Home size={24} color={color} />,
+          tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="search"
         options={{
           title: 'Search',
-          tabBarIcon: ({ color }) => <Search size={24} color={color} />,
+          tabBarIcon: ({ color, size }) => <Search size={size} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="add"
+        name="add-listing"
         options={{
-          title: 'Add',
-          tabBarIcon: ({ color }) => <PlusCircle size={24} color={color} />,
+          title: 'Add Listing',
+          tabBarIcon: ({ color, size }) => <PlusCircle size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="points"
         options={{
           title: 'Points',
-          tabBarIcon: ({ color }) => <Award size={24} color={color} />,
+          tabBarIcon: ({ color, size }) => <Coins size={size} color={color} />,
         }}
       />
       <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color }) => <User size={24} color={color} />,
+          tabBarIcon: ({ color, size }) => <User size={size} color={color} />,
         }}
       />
     </Tabs>

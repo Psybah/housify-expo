@@ -1,558 +1,412 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
-import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
+import React, { useEffect, useState } from 'react';
 import { 
-  Coins, 
-  ArrowRight, 
-  TrendingUp, 
-  Gift, 
-  Clock, 
-  CheckCircle,
-  PlusCircle,
-  UserPlus,
-  Edit3,
-  Award,
-  Home
-} from "lucide-react-native";
-import { colors } from '@/constants/colors';
+  View, 
+  Text, 
+  StyleSheet, 
+  ScrollView, 
+  TouchableOpacity,
+  Alert,
+  StatusBar
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Check, Coins, ArrowRight, Info } from 'lucide-react-native';
+import { Colors } from '@/constants/colors';
 import { Button } from '@/components/Button';
-import { PointsBadge } from '@/components/PointsBadge';
-import { useAuthStore } from '@/store/auth-store';
+import { PointsEarnedModal } from '@/components/PointsEarnedModal';
 import { usePointsStore } from '@/store/points-store';
+import { useAuthStore } from '@/store/auth-store';
 
 export default function PointsScreen() {
-  const router = useRouter();
-  const { user } = useAuthStore();
-  const { transactions, fetchTransactions } = usePointsStore();
+  const { packages, fetchPackages, purchasePoints, isLoading } = usePointsStore();
+  const { 
+    user, 
+    isAuthenticated, 
+    showPointsEarnedModal, 
+    pointsEarnedAmount, 
+    pointsEarnedReason, 
+    hidePointsEarnedModal 
+  } = useAuthStore();
+  const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
   
   useEffect(() => {
-    fetchTransactions();
+    fetchPackages();
   }, []);
   
-  const handleBuyPoints = () => {
-    router.push('/buy-points');
+  const handleSelectPackage = (packageId: string) => {
+    setSelectedPackage(packageId);
   };
   
-  const handleAddListing = () => {
-    router.push('/add-listing');
-  };
-  
-  // Group transactions by date
-  const groupedTransactions = transactions.reduce((groups, transaction) => {
-    const date = new Date(transaction.createdAt).toDateString();
-    if (!groups[date]) {
-      groups[date] = [];
+  const handlePurchase = async () => {
+    if (!isAuthenticated) {
+      Alert.alert('Authentication Required', 'Please log in to purchase points.');
+      return;
     }
-    groups[date].push(transaction);
-    return groups;
-  }, {} as Record<string, typeof transactions>);
-  
-  const renderTransactionIcon = (type: string) => {
-    switch (type) {
-      case 'purchase':
-        return <Coins size={20} color={colors.iconLight} />;
-      case 'earn':
-        return <Gift size={20} color={colors.iconLight} />;
-      case 'unlock':
-        return <CheckCircle size={20} color={colors.iconLight} />;
-      case 'bonus':
-        return <TrendingUp size={20} color={colors.iconLight} />;
-      case 'referral':
-        return <UserPlus size={20} color={colors.iconLight} />;
-      default:
-        return <Clock size={20} color={colors.iconLight} />;
+    
+    if (!selectedPackage) {
+      Alert.alert('Select Package', 'Please select a points package to purchase.');
+      return;
+    }
+    
+    try {
+      const success = await purchasePoints(selectedPackage);
+      
+      if (success) {
+        // The points earned modal will be shown automatically
+        setSelectedPackage(null);
+      } else {
+        Alert.alert('Purchase Failed', 'There was an error processing your payment. Please try again.');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'An unexpected error occurred. Please try again later.');
     }
   };
+  
+  // Ensure points is a number
+  const userPoints = user && typeof user.points === 'object' && user.points !== null 
+    ? (user.points.hp || 0) // If it's an object with hp property, use that
+    : (user && typeof user.points === 'number' ? user.points : 0); // Otherwise use the number or default to 0
   
   return (
-    <ScrollView 
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-      showsVerticalScrollIndicator={false}
-    >
-      <View style={styles.header}>
-        <Text style={styles.title}>House Points</Text>
-        <Text style={styles.subtitle}>Manage your HP balance</Text>
-      </View>
-      
-      <View style={styles.balanceCard}>
-        <LinearGradient
-          colors={[colors.primary, '#034694']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.balanceGradient}
-        >
-          <Text style={styles.balanceTitle}>Your Balance</Text>
-          
-          <View style={styles.balanceRow}>
-            <PointsBadge amount={user?.housePoints || 0} size="large" />
-          </View>
-          
-          <View style={styles.balanceActions}>
-            <Button
-              label="Buy Points"
-              onPress={handleBuyPoints}
-              variant="primary"
-              size="small"
-              icon={<Coins size={16} color={colors.iconLight} />}
-              style={styles.balanceButton}
-            />
-            
-            <Button
-              label="Earn Points"
-              onPress={handleAddListing}
-              variant="outline"
-              size="small"
-              icon={<PlusCircle size={16} color={colors.primary} />}
-              style={styles.balanceButton}
-              textStyle={{ color: colors.text }}
-            />
-          </View>
-        </LinearGradient>
-      </View>
-      
-      <View style={styles.plansSection}>
-        <Text style={styles.sectionTitle}>Points Plans</Text>
+    <SafeAreaView style={styles.container} edges={['right', 'left', 'top', 'bottom']}>
+      <StatusBar barStyle="dark-content" backgroundColor={Colors.background.card} />
+      <ScrollView showsVerticalScrollIndicator={false}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Points</Text>
+          <Text style={styles.subtitle}>
+            Purchase points to unlock landlord contacts and verified properties
+          </Text>
+        </View>
         
-        <View style={styles.planCard}>
-          <View style={styles.planHeader}>
-            <Text style={styles.planName}>Free Plan</Text>
-            <Text style={styles.planPrice}>₦0</Text>
+        <View style={styles.balanceCard}>
+          <LinearGradient
+            colors={['#022B60', '#0A3D7A']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.balanceGradient}
+          >
+            <View style={styles.balanceRow}>
+              <View style={styles.balanceItem}>
+                <Text style={styles.balanceLabel}>Housify Points (HP)</Text>
+                <View style={styles.balanceValueContainer}>
+                  <Coins size={16} color={Colors.accent.main} />
+                  <Text style={styles.balanceValue}>{userPoints}</Text>
+                </View>
+              </View>
+            </View>
+          </LinearGradient>
+        </View>
+        
+        <View style={styles.infoCard}>
+          <View style={styles.infoIconContainer}>
+            <Info size={20} color={Colors.primary.main} />
           </View>
-          <Text style={styles.planDescription}>Get started at no cost</Text>
-          
-          <View style={styles.planFeatures}>
-            <View style={styles.planFeature}>
-              <CheckCircle size={16} color={colors.verified} />
-              <Text style={styles.planFeatureText}>Browse nearby listings on the map</Text>
-            </View>
-            <View style={styles.planFeature}>
-              <CheckCircle size={16} color={colors.verified} />
-              <Text style={styles.planFeatureText}>Save & bookmark favorite houses</Text>
-            </View>
-            <View style={styles.planFeature}>
-              <CheckCircle size={16} color={colors.verified} />
-              <Text style={styles.planFeatureText}>Earn 50 HP Free on sign-up!</Text>
-            </View>
+          <View style={styles.infoContent}>
+            <Text style={styles.infoTitle}>How Points Work</Text>
+            <Text style={styles.infoText}>
+              Use HP to unlock verified property contact details. 
+              Earn HP by submitting properties that get verified.
+            </Text>
           </View>
         </View>
         
-        <View style={styles.planCard}>
-          <View style={styles.planHeader}>
-            <Text style={styles.planName}>HP Unlock</Text>
-            <Text style={styles.planSubtitle}>Pay-As-You-Go</Text>
-          </View>
-          <Text style={styles.planDescription}>Buy HP when you need it</Text>
-          
-          <View style={styles.unlockOptions}>
-            <View style={styles.unlockOption}>
-              <Text style={styles.unlockTitle}>Unlock One Listing</Text>
-              <View style={styles.unlockPricing}>
-                <Text style={styles.unlockPoints}>100 HP</Text>
-                <Text style={styles.unlockPrice}>(₦500)</Text>
+        <Text style={styles.sectionTitle}>Buy Housify Points</Text>
+        
+        <View style={styles.packagesContainer}>
+          {packages.map((pkg) => (
+            <TouchableOpacity
+              key={pkg.id}
+              style={[
+                styles.packageCard,
+                selectedPackage === pkg.id && styles.packageCardSelected,
+                pkg.popular && styles.packageCardPopular
+              ]}
+              onPress={() => handleSelectPackage(pkg.id)}
+            >
+              {pkg.popular && (
+                <View style={styles.popularBadge}>
+                  <Text style={styles.popularText}>Popular</Text>
+                </View>
+              )}
+              
+              <View style={styles.packageHeader}>
+                <Text style={styles.packageName}>{pkg.name}</Text>
+                {selectedPackage === pkg.id && (
+                  <View style={styles.checkCircle}>
+                    <Check size={16} color={Colors.neutral.white} />
+                  </View>
+                )}
               </View>
-            </View>
-            
-            <View style={[styles.unlockOption, styles.popularOption]}>
-              <View style={styles.popularBadge}>
-                <Text style={styles.popularText}>Popular</Text>
+              
+              <View style={styles.packagePoints}>
+                <Coins size={20} color={Colors.accent.main} />
+                <Text style={styles.pointsAmount}>{pkg.points} HP</Text>
               </View>
-              <Text style={styles.unlockTitle}>Unlock Three Listings</Text>
-              <View style={styles.unlockPricing}>
-                <Text style={styles.unlockPoints}>250 HP</Text>
-                <Text style={styles.unlockPrice}>(₦1,200)</Text>
-              </View>
-            </View>
-            
-            <View style={styles.unlockOption}>
-              <Text style={styles.unlockTitle}>Unlock Five Listings</Text>
-              <View style={styles.unlockPricing}>
-                <Text style={styles.unlockPoints}>400 HP</Text>
-              </View>
-            </View>
-          </View>
-          
+              
+              <Text style={styles.packagePrice}>₦{pkg.price.toLocaleString('en-NG')}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        
+        <View style={styles.purchaseContainer}>
           <Button
-            label="Buy House Points"
-            onPress={handleBuyPoints}
-            variant="primary"
-            icon={<Coins size={18} color={colors.iconLight} />}
-            style={styles.buyButton}
+            title="Purchase Points"
+            onPress={handlePurchase}
+            fullWidth
+            loading={isLoading}
+            disabled={!selectedPackage || isLoading}
           />
         </View>
-      </View>
-      
-      <View style={styles.earnSection}>
-        <Text style={styles.sectionTitle}>How to Earn Free HP</Text>
         
-        <View style={styles.earnGrid}>
-          <View style={styles.earnCard}>
-            <View style={[styles.earnIconContainer, { backgroundColor: colors.primary }]}>
-              <Award size={24} color={colors.iconLight} />
-            </View>
-            <Text style={styles.earnTitle}>Sign-Up Bonus</Text>
-            <Text style={styles.earnPoints}>50 HP</Text>
-            <Text style={styles.earnDescription}>Just create an account</Text>
-          </View>
+        <View style={styles.earnPointsSection}>
+          <Text style={styles.earnPointsTitle}>Other Ways to Earn Points</Text>
           
-          <View style={styles.earnCard}>
-            <View style={[styles.earnIconContainer, { backgroundColor: colors.referral }]}>
-              <UserPlus size={24} color={colors.iconLight} />
+          <TouchableOpacity style={styles.earnPointsCard}>
+            <View style={styles.earnPointsIcon}>
+              <Home size={24} color={Colors.primary.main} />
             </View>
-            <Text style={styles.earnTitle}>Refer a Friend</Text>
-            <Text style={styles.earnPoints}>100 HP</Text>
-            <Text style={styles.earnDescription}>Per successful referral</Text>
-          </View>
+            <View style={styles.earnPointsContent}>
+              <Text style={styles.earnPointsCardTitle}>Submit Property Listings</Text>
+              <Text style={styles.earnPointsCardText}>
+                Earn up to 100 HP for each verified property you submit
+              </Text>
+            </View>
+            <ArrowRight size={20} color={Colors.neutral.gray} />
+          </TouchableOpacity>
           
-          <View style={styles.earnCard}>
-            <View style={[styles.earnIconContainer, { backgroundColor: colors.verified }]}>
-              <Home size={24} color={colors.iconLight} />
+          <TouchableOpacity style={styles.earnPointsCard}>
+            <View style={styles.earnPointsIcon}>
+              <UserPlus size={24} color={Colors.primary.main} />
             </View>
-            <Text style={styles.earnTitle}>List a Property</Text>
-            <Text style={styles.earnPoints}>200 HP</Text>
-            <Text style={styles.earnDescription}>For verified listings</Text>
-          </View>
-          
-          <View style={styles.earnCard}>
-            <View style={[styles.earnIconContainer, { backgroundColor: colors.secondary }]}>
-              <Edit3 size={24} color={colors.iconLight} />
+            <View style={styles.earnPointsContent}>
+              <Text style={styles.earnPointsCardTitle}>Refer Friends</Text>
+              <Text style={styles.earnPointsCardText}>
+                Get 50 HP for each friend who joins and verifies their account
+              </Text>
             </View>
-            <Text style={styles.earnTitle}>Complete Profile</Text>
-            <Text style={styles.earnPoints}>30 HP</Text>
-            <Text style={styles.earnDescription}>Update all your details</Text>
-          </View>
+            <ArrowRight size={20} color={Colors.neutral.gray} />
+          </TouchableOpacity>
         </View>
-      </View>
+      </ScrollView>
       
-      <View style={styles.transactionsContainer}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Transaction History</Text>
-        </View>
-        
-        <View style={styles.transactionsList}>
-          {Object.keys(groupedTransactions).length > 0 ? (
-            Object.entries(groupedTransactions).map(([date, dayTransactions]) => (
-              <View key={date} style={styles.transactionGroup}>
-                <Text style={styles.transactionDate}>{date}</Text>
-                
-                {dayTransactions.map((transaction, index) => (
-                  <View key={index} style={styles.transactionItem}>
-                    <View style={[
-                      styles.transactionIconContainer,
-                      { backgroundColor: getTransactionColor(transaction.type) }
-                    ]}>
-                      {renderTransactionIcon(transaction.type)}
-                    </View>
-                    
-                    <View style={styles.transactionDetails}>
-                      <Text style={styles.transactionTitle}>{transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1)}</Text>
-                      <Text style={styles.transactionDescription}>{transaction.description}</Text>
-                    </View>
-                    
-                    <Text style={[
-                      styles.transactionAmount,
-                      transaction.type === 'spent' ? styles.transactionNegative : styles.transactionPositive
-                    ]}>
-                      {transaction.type === 'spent' ? '-' : '+'}{transaction.amount} HP
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            ))
-          ) : (
-            <View style={styles.emptyTransactions}>
-              <Text style={styles.emptyTransactionsText}>No transactions yet</Text>
-            </View>
-          )}
-        </View>
-      </View>
-    </ScrollView>
+      <PointsEarnedModal
+        visible={showPointsEarnedModal}
+        onClose={hidePointsEarnedModal}
+        points={pointsEarnedAmount}
+        reason={pointsEarnedReason}
+      />
+    </SafeAreaView>
   );
 }
 
-// Helper function to get transaction icon background color
-const getTransactionColor = (type: string) => {
-  switch (type) {
-    case 'purchase':
-      return colors.housePoints;
-    case 'earn':
-      return colors.verified;
-    case 'unlock':
-      return colors.primary;
-    case 'bonus':
-      return colors.accent;
-    case 'referral':
-      return colors.referral;
-    default:
-      return colors.textSecondary;
-  }
-};
+// Import these icons at the top of the file
+import { Home, UserPlus } from 'lucide-react-native';
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
-  },
-  contentContainer: {
-    padding: 16,
-    paddingBottom: 32,
+    backgroundColor: Colors.background.primary,
   },
   header: {
-    marginBottom: 24,
+    padding: 16,
+    backgroundColor: Colors.background.card,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.neutral.lightGray,
   },
   title: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: colors.text,
+    fontWeight: '700',
+    color: Colors.text.primary,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: Colors.text.secondary,
   },
   balanceCard: {
+    margin: 16,
     borderRadius: 16,
     overflow: 'hidden',
-    marginBottom: 24,
   },
   balanceGradient: {
     padding: 16,
   },
-  balanceTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: colors.iconLight,
-    marginBottom: 16,
-  },
   balanceRow: {
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  balanceActions: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  balanceButton: {
-    flex: 1,
-    marginHorizontal: 4,
-  },
-  plansSection: {
-    marginBottom: 24,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 16,
-  },
-  planCard: {
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  },
-  planHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  planName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.text,
-  },
-  planPrice: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.text,
-  },
-  planSubtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  planDescription: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 16,
-  },
-  planFeatures: {
-    marginTop: 8,
-  },
-  planFeature: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  planFeatureText: {
-    fontSize: 14,
-    color: colors.text,
-    marginLeft: 8,
-  },
-  unlockOptions: {
-    marginTop: 8,
-    marginBottom: 16,
-  },
-  unlockOption: {
-    backgroundColor: colors.background,
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-    position: 'relative',
-  },
-  popularOption: {
-    borderColor: colors.popular,
-    borderWidth: 2,
-  },
-  popularBadge: {
-    position: 'absolute',
-    top: -10,
-    right: 12,
-    backgroundColor: colors.popular,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  popularText: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: colors.iconLight,
-  },
-  unlockTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  unlockPricing: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  unlockPoints: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: colors.primary,
-  },
-  unlockPrice: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginLeft: 4,
-  },
-  buyButton: {
-    marginTop: 8,
-  },
-  earnSection: {
-    marginBottom: 24,
-  },
-  earnGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
-  earnCard: {
-    width: '48%',
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 12,
-    alignItems: 'center',
-  },
-  earnIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
     justifyContent: 'center',
+  },
+  balanceItem: {
     alignItems: 'center',
-    marginBottom: 8,
   },
-  earnTitle: {
+  balanceLabel: {
     fontSize: 14,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 4,
-    textAlign: 'center',
-  },
-  earnPoints: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: colors.primary,
-    marginBottom: 4,
-  },
-  earnDescription: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    textAlign: 'center',
-  },
-  transactionsContainer: {
-    flex: 1,
-  },
-  sectionHeader: {
-    marginBottom: 16,
-  },
-  transactionsList: {
-    flex: 1,
-  },
-  transactionGroup: {
-    marginBottom: 16,
-  },
-  transactionDate: {
-    fontSize: 12,
-    color: colors.textSecondary,
+    color: Colors.neutral.white,
+    opacity: 0.8,
     marginBottom: 8,
   },
-  transactionItem: {
+  balanceValueContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 8,
+    gap: 8,
   },
-  transactionIconContainer: {
+  balanceValue: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: Colors.neutral.white,
+  },
+  infoCard: {
+    margin: 16,
+    marginTop: 0,
+    padding: 16,
+    backgroundColor: Colors.background.card,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  infoIconContainer: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    justifyContent: 'center',
+    backgroundColor: Colors.primary.light + '20',
     alignItems: 'center',
-    marginRight: 12,
+    justifyContent: 'center',
   },
-  transactionDetails: {
+  infoContent: {
     flex: 1,
   },
-  transactionTitle: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: colors.text,
+  infoTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text.primary,
     marginBottom: 4,
   },
-  transactionDescription: {
-    fontSize: 12,
-    color: colors.textSecondary,
+  infoText: {
+    fontSize: 14,
+    color: Colors.text.secondary,
   },
-  transactionAmount: {
-    fontSize: 16,
-    fontWeight: 'bold',
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.text.primary,
+    marginHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 12,
   },
-  transactionNegative: {
-    color: colors.unverified,
+  packagesContainer: {
+    padding: 16,
+    paddingTop: 0,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
   },
-  transactionPositive: {
-    color: colors.verified,
-  },
-  emptyTransactions: {
-    backgroundColor: colors.card,
+  packageCard: {
+    width: '48%',
+    backgroundColor: Colors.background.card,
     borderRadius: 12,
-    padding: 24,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.neutral.lightGray,
+    position: 'relative',
+  },
+  packageCardSelected: {
+    borderColor: Colors.primary.main,
+    backgroundColor: Colors.primary.light + '10',
+  },
+  packageCardPopular: {
+    borderColor: Colors.accent.main,
+  },
+  popularBadge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    backgroundColor: Colors.accent.main,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderTopRightRadius: 12,
+    borderBottomLeftRadius: 8,
+  },
+  popularText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: Colors.neutral.white,
+  },
+  packageHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  packageName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text.primary,
+  },
+  checkCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: Colors.primary.main,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  emptyTransactionsText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: colors.text,
+  packagePoints: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     marginBottom: 8,
+  },
+  pointsAmount: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: Colors.text.primary,
+  },
+  packagePrice: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+  },
+  purchaseContainer: {
+    padding: 16,
+  },
+  earnPointsSection: {
+    padding: 16,
+    paddingTop: 0,
+    marginBottom: 24,
+  },
+  earnPointsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.text.primary,
+    marginBottom: 12,
+  },
+  earnPointsCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.background.card,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  earnPointsIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: Colors.primary.light + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  earnPointsContent: {
+    flex: 1,
+  },
+  earnPointsCardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text.primary,
+    marginBottom: 4,
+  },
+  earnPointsCardText: {
+    fontSize: 14,
+    color: Colors.text.secondary,
   },
 });

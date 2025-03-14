@@ -6,147 +6,192 @@ import {
   ActivityIndicator,
   ViewStyle,
   TextStyle,
-  View
+  TouchableOpacityProps
 } from 'react-native';
-import { colors } from '@/constants/colors';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Colors } from '@/constants/colors';
 
-type ButtonProps = {
-  label: string;
+interface ButtonProps extends TouchableOpacityProps {
+  title: string;
   onPress: () => void;
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
   size?: 'small' | 'medium' | 'large';
   fullWidth?: boolean;
-  isLoading?: boolean;
-  disabled?: boolean;
+  loading?: boolean;
   icon?: React.ReactNode;
   style?: ViewStyle;
   textStyle?: TextStyle;
-  accessibilityLabel?: string;
-  accessibilityHint?: string;
-};
+  disabled?: boolean;
+}
 
-export const Button = ({
-  label,
+export const Button: React.FC<ButtonProps> = ({
+  title,
   onPress,
   variant = 'primary',
   size = 'medium',
   fullWidth = false,
-  isLoading = false,
-  disabled = false,
+  loading = false,
   icon,
   style,
   textStyle,
-  accessibilityLabel,
-  accessibilityHint,
-}: ButtonProps) => {
-  const getButtonStyle = () => {
-    switch (variant) {
-      case 'primary':
-        return styles.primaryButton;
-      case 'secondary':
-        return styles.secondaryButton;
-      case 'outline':
-        return styles.outlineButton;
-      case 'ghost':
-        return styles.ghostButton;
-      default:
-        return styles.primaryButton;
-    }
-  };
+  disabled = false,
+  ...rest
+}) => {
+  const getButtonStyles = (): ViewStyle => {
+    const baseStyle: ViewStyle = {
+      ...styles.button,
+      ...(fullWidth && styles.fullWidth),
+      ...(disabled && styles.disabled),
+    };
 
-  const getTextStyle = () => {
-    switch (variant) {
-      case 'primary':
-        return styles.primaryText;
-      case 'secondary':
-        return styles.secondaryText;
-      case 'outline':
-        return styles.outlineText;
-      case 'ghost':
-        return styles.ghostText;
-      default:
-        return styles.primaryText;
-    }
-  };
-
-  const getSizeStyle = () => {
     switch (size) {
       case 'small':
-        return styles.smallButton;
-      case 'medium':
-        return styles.mediumButton;
+        return { ...baseStyle, ...styles.smallButton };
       case 'large':
-        return styles.largeButton;
+        return { ...baseStyle, ...styles.largeButton };
       default:
-        return styles.mediumButton;
+        return baseStyle;
     }
   };
 
-  const getTextSizeStyle = () => {
+  const getTextStyles = (): TextStyle => {
+    const baseStyle: TextStyle = {
+      ...styles.text,
+    };
+
     switch (size) {
       case 'small':
-        return styles.smallText;
-      case 'medium':
-        return styles.mediumText;
+        return { ...baseStyle, ...styles.smallText };
       case 'large':
-        return styles.largeText;
+        return { ...baseStyle, ...styles.largeText };
       default:
-        return styles.mediumText;
+        return baseStyle;
     }
   };
 
-  const buttonStyle = getButtonStyle();
-  const textStyle_ = getTextStyle();
-  const sizeStyle = getSizeStyle();
-  const textSizeStyle = getTextSizeStyle();
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <ActivityIndicator 
+          color={variant === 'outline' || variant === 'ghost' 
+            ? Colors.primary.main 
+            : Colors.neutral.white} 
+          size="small" 
+        />
+      );
+    }
+
+    return (
+      <>
+        {icon && icon}
+        <Text 
+          style={[
+            getTextStyles(),
+            variant === 'outline' && styles.outlineText,
+            variant === 'ghost' && styles.ghostText,
+            variant === 'secondary' && styles.secondaryText,
+            textStyle
+          ]}
+        >
+          {title}
+        </Text>
+      </>
+    );
+  };
+
+  if (variant === 'primary') {
+    return (
+      <TouchableOpacity
+        onPress={onPress}
+        disabled={disabled || loading}
+        style={[getButtonStyles(), style]}
+        activeOpacity={0.8}
+        {...rest}
+      >
+        <LinearGradient
+          colors={Colors.gradients.primary}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.gradient}
+        >
+          {renderContent()}
+        </LinearGradient>
+      </TouchableOpacity>
+    );
+  }
+
+  if (variant === 'secondary') {
+    return (
+      <TouchableOpacity
+        onPress={onPress}
+        disabled={disabled || loading}
+        style={[getButtonStyles(), styles.secondaryButton, style]}
+        activeOpacity={0.8}
+        {...rest}
+      >
+        <LinearGradient
+          colors={Colors.gradients.accent}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.gradient}
+        >
+          {renderContent()}
+        </LinearGradient>
+      </TouchableOpacity>
+    );
+  }
 
   return (
     <TouchableOpacity
-      style={[
-        styles.button,
-        buttonStyle,
-        sizeStyle,
-        fullWidth && styles.fullWidth,
-        disabled && styles.disabled,
-        style,
-      ]}
       onPress={onPress}
-      disabled={disabled || isLoading}
-      accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel || label}
-      accessibilityHint={accessibilityHint}
+      disabled={disabled || loading}
+      style={[
+        getButtonStyles(),
+        variant === 'outline' && styles.outlineButton,
+        variant === 'ghost' && styles.ghostButton,
+        style
+      ]}
+      activeOpacity={0.8}
+      {...rest}
     >
-      {isLoading ? (
-        <ActivityIndicator 
-          color={variant === 'outline' || variant === 'ghost' ? colors.primary : colors.iconLight} 
-          size="small" 
-        />
-      ) : (
-        <View style={styles.contentContainer}>
-          {icon && <View style={styles.iconContainer}>{icon}</View>}
-          <Text style={[styles.text, textStyle_, textSizeStyle, textStyle]}>
-            {label}
-          </Text>
-        </View>
-      )}
+      {renderContent()}
     </TouchableOpacity>
   );
 };
 
 const styles = StyleSheet.create({
   button: {
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    gap: 8,
+    overflow: 'hidden',
+    minHeight: 56, // Increased minimum height for better touch targets
+  },
+  gradient: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  smallButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    flexDirection: 'row',
+    minHeight: 44, // Increased minimum height for better touch targets
   },
-  contentContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconContainer: {
-    marginRight: 8,
+  largeButton: {
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    minHeight: 64, // Increased minimum height for better touch targets
   },
   fullWidth: {
     width: '100%',
@@ -154,58 +199,35 @@ const styles = StyleSheet.create({
   disabled: {
     opacity: 0.5,
   },
-  primaryButton: {
-    backgroundColor: colors.primary,
-    borderWidth: 0,
-  },
   secondaryButton: {
-    backgroundColor: colors.secondary,
-    borderWidth: 0,
+    backgroundColor: Colors.accent.main,
   },
   outlineButton: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: colors.primary,
+    borderColor: Colors.primary.main,
   },
   ghostButton: {
     backgroundColor: 'transparent',
-    borderWidth: 0,
   },
   text: {
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  primaryText: {
-    color: colors.iconLight,
-  },
-  secondaryText: {
-    color: colors.iconLight,
-  },
-  outlineText: {
-    color: colors.primary,
-  },
-  ghostText: {
-    color: colors.primary,
-  },
-  smallButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-  },
-  mediumButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-  },
-  largeButton: {
-    paddingVertical: 16,
-    paddingHorizontal: 32,
+    color: Colors.neutral.white,
+    fontWeight: '600',
+    fontSize: 16,
   },
   smallText: {
-    fontSize: 12,
-  },
-  mediumText: {
     fontSize: 14,
   },
   largeText: {
-    fontSize: 16,
+    fontSize: 18,
+  },
+  outlineText: {
+    color: Colors.primary.main,
+  },
+  ghostText: {
+    color: Colors.primary.main,
+  },
+  secondaryText: {
+    color: Colors.neutral.white,
   },
 });

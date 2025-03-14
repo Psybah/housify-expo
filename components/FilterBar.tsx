@@ -8,104 +8,148 @@ import {
   Modal,
   Pressable
 } from 'react-native';
-import { Filter, X, Check, Home, MapPin, Bed, DollarSign, CheckCircle } from 'lucide-react-native';
-import { colors } from '@/constants/colors';
+import { SlidersHorizontal, X, Check } from 'lucide-react-native';
+import { Colors } from '@/constants/colors';
+import { PropertyType } from '@/types/property';
 import { Button } from './Button';
-import { Input } from './Input';
 
-type FilterOption = {
+interface FilterOption {
   label: string;
   value: string;
-};
+}
 
-type FilterBarProps = {
-  onApplyFilters: (filters: {
-    location?: string;
-    minPrice?: number;
-    maxPrice?: number;
-    bedrooms?: number;
-    verified?: boolean;
-  }) => void;
-  modalVisible: boolean;
-  setModalVisible: (visible: boolean) => void;
-};
+interface FilterBarProps {
+  onFilter: (filters: any) => void;
+  onClearFilters: () => void;
+}
 
-export const FilterBar = ({ onApplyFilters, modalVisible, setModalVisible }: FilterBarProps) => {
-  const [activeFilters, setActiveFilters] = useState<string[]>([]);
+export const FilterBar: React.FC<FilterBarProps> = ({ 
+  onFilter,
+  onClearFilters
+}) => {
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedPropertyTypes, setSelectedPropertyTypes] = useState<PropertyType[]>([]);
+  const [selectedBedrooms, setSelectedBedrooms] = useState<number | null>(null);
+  const [selectedPriceRange, setSelectedPriceRange] = useState<string | null>(null);
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
   
-  // Filter state
-  const [location, setLocation] = useState('');
-  const [minPrice, setMinPrice] = useState('');
-  const [maxPrice, setMaxPrice] = useState('');
-  const [bedrooms, setBedrooms] = useState('');
-  const [verified, setVerified] = useState<boolean | undefined>(undefined);
-  
-  const locationOptions: FilterOption[] = [
-    { label: 'Lekki', value: 'Lekki' },
-    { label: 'Yaba', value: 'Yaba' },
-    { label: 'Ikeja GRA', value: 'Ikeja GRA' },
-    { label: 'Victoria Island', value: 'Victoria Island' },
-    { label: 'Surulere', value: 'Surulere' },
-    { label: 'Ikoyi', value: 'Ikoyi' },
-    { label: 'Ajah', value: 'Ajah' },
-    { label: 'Magodo', value: 'Magodo' },
-    { label: 'Maitama', value: 'Maitama' },
-    { label: 'Asokoro', value: 'Asokoro' },
-    { label: 'Banana Island', value: 'Banana Island' },
-    { label: 'Ojodu', value: 'Ojodu' },
-    { label: 'GRA Enugu', value: 'GRA Enugu' },
+  const propertyTypes: FilterOption[] = [
+    { label: 'Apartment', value: 'apartment' },
+    { label: 'House', value: 'house' },
+    { label: 'Duplex', value: 'duplex' },
+    { label: 'Bungalow', value: 'bungalow' },
+    { label: 'Self-contained', value: 'self-contained' },
   ];
   
   const bedroomOptions: FilterOption[] = [
+    { label: 'Any', value: '0' },
     { label: '1+', value: '1' },
     { label: '2+', value: '2' },
     { label: '3+', value: '3' },
     { label: '4+', value: '4' },
-    { label: '5+', value: '5' },
   ];
   
-  const handleApplyFilters = () => {
-    const filters: {
-      location?: string;
-      minPrice?: number;
-      maxPrice?: number;
-      bedrooms?: number;
-      verified?: boolean;
-    } = {};
-    
-    if (location) filters.location = location;
-    if (minPrice) filters.minPrice = parseInt(minPrice);
-    if (maxPrice) filters.maxPrice = parseInt(maxPrice);
-    if (bedrooms) filters.bedrooms = parseInt(bedrooms);
-    if (verified !== undefined) filters.verified = verified;
-    
-    // Update active filters for display
-    const newActiveFilters: string[] = [];
-    if (location) newActiveFilters.push(`Location: ${location}`);
-    if (minPrice || maxPrice) {
-      const priceFilter = `Price: ${minPrice || '0'} - ${maxPrice || 'Any'}`;
-      newActiveFilters.push(priceFilter);
+  const priceRanges: FilterOption[] = [
+    { label: 'Any', value: '0-100000000' },
+    { label: 'Under ₦500k', value: '0-500000' },
+    { label: '₦500k - ₦1M', value: '500000-1000000' },
+    { label: '₦1M - ₦2M', value: '1000000-2000000' },
+    { label: '₦2M - ₦5M', value: '2000000-5000000' },
+    { label: 'Above ₦5M', value: '5000000-100000000' },
+  ];
+  
+  const togglePropertyType = (type: PropertyType) => {
+    if (selectedPropertyTypes.includes(type)) {
+      setSelectedPropertyTypes(selectedPropertyTypes.filter(t => t !== type));
+    } else {
+      setSelectedPropertyTypes([...selectedPropertyTypes, type]);
     }
-    if (bedrooms) newActiveFilters.push(`Bedrooms: ${bedrooms}+`);
-    if (verified !== undefined) newActiveFilters.push(`${verified ? 'Verified' : 'Unverified'}`);
+  };
+  
+  const handleApplyFilters = () => {
+    const priceRangeParts = selectedPriceRange ? selectedPriceRange.split('-') : ['0', '100000000'];
     
-    setActiveFilters(newActiveFilters);
-    onApplyFilters(filters);
+    const filters = {
+      propertyType: selectedPropertyTypes.length > 0 ? selectedPropertyTypes : undefined,
+      bedrooms: selectedBedrooms !== null && selectedBedrooms > 0 ? selectedBedrooms : undefined,
+      priceRange: {
+        min: parseInt(priceRangeParts[0]),
+        max: parseInt(priceRangeParts[1])
+      },
+      verified: verifiedOnly ? true : undefined
+    };
+    
+    onFilter(filters);
     setModalVisible(false);
   };
   
-  const handleResetFilters = () => {
-    setLocation('');
-    setMinPrice('');
-    setMaxPrice('');
-    setBedrooms('');
-    setVerified(undefined);
-    setActiveFilters([]);
-    onApplyFilters({});
+  const handleClearFilters = () => {
+    setSelectedPropertyTypes([]);
+    setSelectedBedrooms(null);
+    setSelectedPriceRange(null);
+    setVerifiedOnly(false);
+    onClearFilters();
+    setModalVisible(false);
+  };
+  
+  const getActiveFilterCount = () => {
+    let count = 0;
+    if (selectedPropertyTypes.length > 0) count++;
+    if (selectedBedrooms !== null) count++;
+    if (selectedPriceRange !== null && selectedPriceRange !== '0-100000000') count++;
+    if (verifiedOnly) count++;
+    return count;
   };
   
   return (
-    <View>
+    <View style={styles.container}>
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        <TouchableOpacity 
+          style={styles.filterButton} 
+          onPress={() => setModalVisible(true)}
+        >
+          <SlidersHorizontal size={16} color={Colors.primary.main} />
+          <Text style={styles.filterButtonText}>Filters</Text>
+          {getActiveFilterCount() > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{getActiveFilterCount()}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+        
+        <View style={styles.divider} />
+        
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.quickFiltersContainer}
+        >
+          {propertyTypes.map((type) => (
+            <TouchableOpacity
+              key={type.value}
+              style={[
+                styles.quickFilterItem,
+                selectedPropertyTypes.includes(type.value as PropertyType) && styles.quickFilterItemActive
+              ]}
+              onPress={() => togglePropertyType(type.value as PropertyType)}
+            >
+              <Text 
+                style={[
+                  styles.quickFilterText,
+                  selectedPropertyTypes.includes(type.value as PropertyType) && styles.quickFilterTextActive
+                ]}
+              >
+                {type.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </ScrollView>
+      
       <Modal
         animationType="slide"
         transparent={true}
@@ -117,155 +161,124 @@ export const FilterBar = ({ onApplyFilters, modalVisible, setModalVisible }: Fil
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Filters</Text>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <X size={24} color={colors.text} />
+                <X size={24} color={Colors.text.primary} />
               </TouchableOpacity>
             </View>
             
             <ScrollView style={styles.modalBody}>
-              <Text style={styles.sectionTitle}>Location</Text>
-              <View style={styles.optionsContainer}>
-                {locationOptions.map((option) => (
-                  <TouchableOpacity
-                    key={option.value}
-                    style={[
-                      styles.optionButton,
-                      location === option.value && styles.optionButtonActive
-                    ]}
-                    onPress={() => setLocation(option.value)}
-                  >
-                    <MapPin 
-                      size={16} 
-                      color={location === option.value ? colors.background : colors.textSecondary} 
-                    />
-                    <Text 
+              <View style={styles.filterSection}>
+                <Text style={styles.filterSectionTitle}>Property Type</Text>
+                <View style={styles.optionsGrid}>
+                  {propertyTypes.map((type) => (
+                    <TouchableOpacity
+                      key={type.value}
                       style={[
-                        styles.optionText,
-                        location === option.value && styles.optionTextActive
+                        styles.optionItem,
+                        selectedPropertyTypes.includes(type.value as PropertyType) && styles.optionItemActive
                       ]}
+                      onPress={() => togglePropertyType(type.value as PropertyType)}
                     >
-                      {option.label}
-                    </Text>
-                    {location === option.value && (
-                      <Check size={16} color={colors.background} />
-                    )}
-                  </TouchableOpacity>
-                ))}
+                      <Text 
+                        style={[
+                          styles.optionText,
+                          selectedPropertyTypes.includes(type.value as PropertyType) && styles.optionTextActive
+                        ]}
+                      >
+                        {type.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
               
-              <Text style={styles.sectionTitle}>Price Range (₦)</Text>
-              <View style={styles.priceContainer}>
-                <Input
-                  placeholder="Min Price"
-                  value={minPrice}
-                  onChangeText={setMinPrice}
-                  keyboardType="numeric"
-                  style={styles.priceInput}
-                  icon={<DollarSign size={16} color={colors.textSecondary} />}
-                />
-                <Text style={styles.priceSeparator}>-</Text>
-                <Input
-                  placeholder="Max Price"
-                  value={maxPrice}
-                  onChangeText={setMaxPrice}
-                  keyboardType="numeric"
-                  style={styles.priceInput}
-                  icon={<DollarSign size={16} color={colors.textSecondary} />}
-                />
-              </View>
-              
-              <Text style={styles.sectionTitle}>Bedrooms</Text>
-              <View style={styles.optionsContainer}>
-                {bedroomOptions.map((option) => (
-                  <TouchableOpacity
-                    key={option.value}
-                    style={[
-                      styles.optionButton,
-                      bedrooms === option.value && styles.optionButtonActive
-                    ]}
-                    onPress={() => setBedrooms(option.value)}
-                  >
-                    <Bed 
-                      size={16} 
-                      color={bedrooms === option.value ? colors.background : colors.textSecondary} 
-                    />
-                    <Text 
+              <View style={styles.filterSection}>
+                <Text style={styles.filterSectionTitle}>Bedrooms</Text>
+                <View style={styles.optionsRow}>
+                  {bedroomOptions.map((option) => (
+                    <TouchableOpacity
+                      key={option.value}
                       style={[
-                        styles.optionText,
-                        bedrooms === option.value && styles.optionTextActive
+                        styles.optionItem,
+                        selectedBedrooms === parseInt(option.value) && styles.optionItemActive
                       ]}
+                      onPress={() => setSelectedBedrooms(parseInt(option.value))}
                     >
-                      {option.label}
-                    </Text>
-                    {bedrooms === option.value && (
-                      <Check size={16} color={colors.background} />
-                    )}
-                  </TouchableOpacity>
-                ))}
+                      <Text 
+                        style={[
+                          styles.optionText,
+                          selectedBedrooms === parseInt(option.value) && styles.optionTextActive
+                        ]}
+                      >
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               </View>
               
-              <Text style={styles.sectionTitle}>Verification Status</Text>
-              <View style={styles.optionsContainer}>
+              <View style={styles.filterSection}>
+                <Text style={styles.filterSectionTitle}>Price Range</Text>
+                <View style={styles.optionsColumn}>
+                  {priceRanges.map((range) => (
+                    <TouchableOpacity
+                      key={range.value}
+                      style={[
+                        styles.optionItemFull,
+                        selectedPriceRange === range.value && styles.optionItemActive
+                      ]}
+                      onPress={() => setSelectedPriceRange(range.value)}
+                    >
+                      <Text 
+                        style={[
+                          styles.optionText,
+                          selectedPriceRange === range.value && styles.optionTextActive
+                        ]}
+                      >
+                        {range.label}
+                      </Text>
+                      {selectedPriceRange === range.value && (
+                        <Check size={16} color={Colors.primary.main} />
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+              
+              <View style={styles.filterSection}>
+                <Text style={styles.filterSectionTitle}>Other Filters</Text>
                 <TouchableOpacity
                   style={[
-                    styles.optionButton,
-                    verified === true && styles.optionButtonActive
+                    styles.optionItemFull,
+                    verifiedOnly && styles.optionItemActive
                   ]}
-                  onPress={() => setVerified(true)}
+                  onPress={() => setVerifiedOnly(!verifiedOnly)}
                 >
-                  <CheckCircle 
-                    size={16} 
-                    color={verified === true ? colors.background : colors.textSecondary} 
-                  />
                   <Text 
                     style={[
                       styles.optionText,
-                      verified === true && styles.optionTextActive
+                      verifiedOnly && styles.optionTextActive
                     ]}
                   >
-                    Verified
+                    Verified Properties Only
                   </Text>
-                  {verified === true && (
-                    <Check size={16} color={colors.background} />
-                  )}
-                </TouchableOpacity>
-                
-                <TouchableOpacity
-                  style={[
-                    styles.optionButton,
-                    verified === false && styles.optionButtonActive
-                  ]}
-                  onPress={() => setVerified(false)}
-                >
-                  <Home 
-                    size={16} 
-                    color={verified === false ? colors.background : colors.textSecondary} 
-                  />
-                  <Text 
-                    style={[
-                      styles.optionText,
-                      verified === false && styles.optionTextActive
-                    ]}
-                  >
-                    Unverified
-                  </Text>
-                  {verified === false && (
-                    <Check size={16} color={colors.background} />
+                  {verifiedOnly && (
+                    <Check size={16} color={Colors.primary.main} />
                   )}
                 </TouchableOpacity>
               </View>
             </ScrollView>
             
             <View style={styles.modalFooter}>
-              <Button
-                title="Reset"
-                onPress={handleResetFilters}
+              <Button 
+                title="Clear All" 
+                onPress={handleClearFilters} 
                 variant="outline"
-                style={styles.resetFilterButton}
+                style={styles.footerButton}
               />
-              <Button
-                title="Apply Filters"
+              <Button 
+                title="Apply Filters" 
                 onPress={handleApplyFilters}
-                style={styles.applyButton}
+                style={styles.footerButton}
               />
             </View>
           </View>
@@ -277,139 +290,156 @@ export const FilterBar = ({ onApplyFilters, modalVisible, setModalVisible }: Fil
 
 const styles = StyleSheet.create({
   container: {
-    width: '100%',
+    backgroundColor: Colors.background.card,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.neutral.lightGray,
+  },
+  scrollContent: {
     paddingHorizontal: 16,
-    marginBottom: 16,
-  },
-  chipsContainer: {
-    flexDirection: 'row',
     alignItems: 'center',
-  },
-  chip: {
-    backgroundColor: colors.inputBackground,
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    marginRight: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  chipText: {
-    color: colors.text,
-    fontSize: 12,
-  },
-  resetButton: {
-    backgroundColor: colors.error,
-    borderRadius: 16,
-    width: 28,
-    height: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 8,
   },
   filterButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: Colors.neutral.offWhite,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    gap: 6,
   },
   filterButtonText: {
-    color: colors.background,
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginLeft: 4,
+    fontSize: 14,
+    fontWeight: '500',
+    color: Colors.primary.main,
+  },
+  badge: {
+    backgroundColor: Colors.primary.main,
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: {
+    color: Colors.neutral.white,
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  divider: {
+    width: 1,
+    height: 24,
+    backgroundColor: Colors.neutral.lightGray,
+    marginHorizontal: 12,
+  },
+  quickFiltersContainer: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  quickFilterItem: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: Colors.neutral.offWhite,
+  },
+  quickFilterItemActive: {
+    backgroundColor: Colors.primary.light,
+  },
+  quickFilterText: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+  },
+  quickFilterTextActive: {
+    color: Colors.neutral.white,
+    fontWeight: '500',
   },
   modalContainer: {
     flex: 1,
-    justifyContent: 'flex-end',
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
   },
   modalContent: {
-    backgroundColor: colors.background,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingTop: 20,
+    backgroundColor: Colors.background.card,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     maxHeight: '80%',
   },
   modalHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+    justifyContent: 'space-between',
+    padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: Colors.neutral.lightGray,
   },
   modalTitle: {
-    color: colors.text,
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '600',
+    color: Colors.text.primary,
   },
   modalBody: {
-    padding: 20,
+    padding: 16,
+  },
+  filterSection: {
+    marginBottom: 24,
+  },
+  filterSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text.primary,
+    marginBottom: 12,
+  },
+  optionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  optionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  optionsColumn: {
+    gap: 8,
+  },
+  optionItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.neutral.lightGray,
+    backgroundColor: Colors.background.card,
+  },
+  optionItemFull: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.neutral.lightGray,
+    backgroundColor: Colors.background.card,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  optionItemActive: {
+    borderColor: Colors.primary.main,
+    backgroundColor: Colors.primary.light + '10',
+  },
+  optionText: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+  },
+  optionTextActive: {
+    color: Colors.primary.main,
+    fontWeight: '500',
   },
   modalFooter: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 20,
+    padding: 16,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: Colors.neutral.lightGray,
+    gap: 12,
   },
-  sectionTitle: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 12,
-    marginTop: 16,
-  },
-  optionsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 16,
-  },
-  optionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.inputBackground,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  optionButtonActive: {
-    backgroundColor: colors.primary,
-  },
-  optionText: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    marginLeft: 6,
-    marginRight: 6,
-  },
-  optionTextActive: {
-    color: colors.background,
-    fontWeight: 'bold',
-  },
-  priceContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  priceInput: {
+  footerButton: {
     flex: 1,
-  },
-  priceSeparator: {
-    color: colors.text,
-    marginHorizontal: 8,
-    fontSize: 16,
-  },
-  resetFilterButton: {
-    flex: 1,
-    marginRight: 8,
-  },
-  applyButton: {
-    flex: 2,
   },
 });

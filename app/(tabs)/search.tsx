@@ -1,176 +1,189 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
-import { Search, Filter, CheckCircle, AlertTriangle, MapPin } from "lucide-react-native";
-import { colors } from '@/constants/colors';
-import { SearchBar } from '@/components/SearchBar';
+import React, { useEffect, useState } from 'react';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  FlatList, 
+  ActivityIndicator,
+  TextInput,
+  TouchableOpacity,
+  StatusBar
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Search as SearchIcon, X } from 'lucide-react-native';
+import { Colors } from '@/constants/colors';
+import { PropertyCard } from '@/components/PropertyCard';
 import { FilterBar } from '@/components/FilterBar';
-import { ListingCard } from '@/components/ListingCard';
-import { useListingsStore } from '@/store/listings-store';
+import { usePropertyStore } from '@/store/property-store';
+import { Property, PropertyFilter } from '@/types/property';
 
 export default function SearchScreen() {
-  const params = useLocalSearchParams<{ category?: string }>();
-  const { listings, fetchListings, isLoading, filterListings: storeFilterListings } = useListingsStore();
+  const { 
+    properties, 
+    filteredProperties, 
+    fetchProperties, 
+    filterProperties, 
+    clearFilters,
+    savedProperties,
+    saveProperty,
+    unsaveProperty
+  } = usePropertyStore();
   
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState<string | null>(params.category || null);
-  const [filteredListings, setFilteredListings] = useState(listings);
-  const [refreshing, setRefreshing] = useState(false);
-  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [searchResults, setSearchResults] = useState<Property[]>([]);
   
   useEffect(() => {
-    fetchListings();
+    const loadProperties = async () => {
+      if (properties.length === 0) {
+        await fetchProperties();
+      }
+      setLoading(false);
+    };
+    
+    loadProperties();
   }, []);
   
   useEffect(() => {
-    applyFilters();
-  }, [listings, searchQuery, activeFilter]);
-  
-  const applyFilters = () => {
-    let result = [...listings];
-    
-    // Apply search query filter
-    if (searchQuery) {
+    if (searchQuery.trim() === '') {
+      setSearchResults(filteredProperties);
+    } else {
       const query = searchQuery.toLowerCase();
-      result = result.filter(
-        listing => 
-          listing.title.toLowerCase().includes(query) ||
-          listing.location.toLowerCase().includes(query) ||
-          listing.description.toLowerCase().includes(query)
+      const results = filteredProperties.filter(property => 
+        property.title.toLowerCase().includes(query) ||
+        property.description.toLowerCase().includes(query) ||
+        property.location.address.toLowerCase().includes(query) ||
+        property.location.city.toLowerCase().includes(query) ||
+        property.location.state.toLowerCase().includes(query)
       );
+      setSearchResults(results);
     }
-    
-    // Apply category filter
-    if (activeFilter) {
-      switch (activeFilter) {
-        case 'verified':
-          result = result.filter(listing => listing.verified);
-          break;
-        case 'unverified':
-          result = result.filter(listing => !listing.verified);
-          break;
-        case 'recent':
-          result = result.sort((a, b) => 
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-          );
-          break;
-        case 'price-low':
-          result = result.sort((a, b) => a.price - b.price);
-          break;
-        case 'price-high':
-          result = result.sort((a, b) => b.price - a.price);
-          break;
-        default:
-          break;
-      }
+  }, [searchQuery, filteredProperties]);
+  
+  const handleFilter = (filter: PropertyFilter) => {
+    filterProperties(filter);
+  };
+  
+  const handleClearFilters = () => {
+    clearFilters();
+  };
+  
+  const handleToggleSave = (propertyId: string) => {
+    if (savedProperties.includes(propertyId)) {
+      unsaveProperty(propertyId);
+    } else {
+      saveProperty(propertyId);
     }
-    
-    setFilteredListings(result);
   };
   
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
+  const clearSearch = () => {
+    setSearchQuery('');
   };
   
-  const handleFilterChange = (filter: string) => {
-    setActiveFilter(activeFilter === filter ? null : filter);
-  };
-  
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await fetchListings();
-    setRefreshing(false);
-  };
-  
-  const handleApplyFilters = (filters: any) => {
-    const filtered = storeFilterListings(filters);
-    setFilteredListings(filtered);
-  };
-  
-  const filters = [
-    { id: 'verified', label: 'Verified', icon: <CheckCircle size={16} color={colors.verified} /> },
-    { id: 'unverified', label: 'Unverified', icon: <AlertTriangle size={16} color={colors.unverified} /> },
-    { id: 'recent', label: 'Recent', icon: <Search size={16} color={colors.accent} /> },
-    { id: 'price-low', label: 'Price: Low to High', icon: <MapPin size={16} color={colors.primary} /> },
-    { id: 'price-high', label: 'Price: High to Low', icon: <MapPin size={16} color={colors.secondary} /> },
-  ];
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.primary.main} />
+      </View>
+    );
+  }
   
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['right', 'left', 'top', 'bottom']}>
+      <StatusBar barStyle="dark-content" backgroundColor={Colors.background.card} />
       <View style={styles.searchContainer}>
-        <SearchBar 
-          placeholder="Search by location, title, or description" 
-          onChangeText={handleSearch}
-          value={searchQuery}
-          onFilterPress={() => setShowFilterModal(true)}
-        />
+        <View style={styles.searchInputContainer}>
+          <SearchIcon size={20} color={Colors.neutral.gray} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search properties, locations..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholderTextColor={Colors.neutral.gray}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={clearSearch}>
+              <X size={20} color={Colors.neutral.gray} />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
       
       <FilterBar 
-        onApplyFilters={handleApplyFilters}
-        modalVisible={showFilterModal}
-        setModalVisible={setShowFilterModal}
+        onFilter={handleFilter}
+        onClearFilters={handleClearFilters}
       />
       
-      <ScrollView 
-        style={styles.listingsContainer}
-        contentContainerStyle={styles.listingsContent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
-        {filteredListings.length > 0 ? (
-          filteredListings.map(listing => (
-            <ListingCard key={listing.id} listing={listing} />
-          ))
-        ) : (
+      <FlatList
+        data={searchResults}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <PropertyCard
+            property={item}
+            onSave={() => handleToggleSave(item.id)}
+            saved={savedProperties.includes(item.id)}
+          />
+        )}
+        contentContainerStyle={styles.listContent}
+        ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Text style={styles.emptyTitle}>No listings found</Text>
+            <Text style={styles.emptyTitle}>No properties found</Text>
             <Text style={styles.emptyText}>
-              {searchQuery 
-                ? "Try adjusting your search or filters" 
-                : "There are no listings available at the moment"}
+              Try adjusting your search or filters to find what you're looking for.
             </Text>
           </View>
-        )}
-      </ScrollView>
-    </View>
+        }
+      />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: Colors.background.primary,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   searchContainer: {
     padding: 16,
-    paddingBottom: 8,
+    backgroundColor: Colors.background.card,
   },
-  listingsContainer: {
+  searchInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.background.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 8,
+  },
+  searchInput: {
     flex: 1,
+    fontSize: 16,
+    color: Colors.text.primary,
   },
-  listingsContent: {
+  listContent: {
     padding: 16,
-    paddingTop: 8,
   },
   emptyContainer: {
-    padding: 24,
-    backgroundColor: colors.card,
-    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 16,
+    padding: 24,
+    marginTop: 40,
   },
   emptyTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.text,
+    fontWeight: '600',
+    color: Colors.text.primary,
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: Colors.text.secondary,
     textAlign: 'center',
   },
 });

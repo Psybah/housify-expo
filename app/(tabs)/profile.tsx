@@ -4,727 +4,866 @@ import {
   Text, 
   StyleSheet, 
   ScrollView, 
-  TouchableOpacity, 
-  Image,
+  TouchableOpacity,
   Alert,
-  Share,
-  Clipboard,
-  Platform
+  Switch,
+  StatusBar,
+  FlatList
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { Image } from 'expo-image';
 import { 
   User, 
   Settings, 
   LogOut, 
   Heart, 
   Home, 
-  Bell, 
-  Lock, 
-  HelpCircle,
   ChevronRight,
-  Edit3,
-  Camera,
-  Share2,
-  Copy,
-  Gift,
-  Users
+  Bell,
+  Shield,
+  HelpCircle,
+  Star,
+  FileEdit,
+  Clock,
+  AlertTriangle,
+  Coins
 } from 'lucide-react-native';
-import { colors } from '@/constants/colors';
+import { Colors } from '@/constants/colors';
+import { Button } from '@/components/Button';
+import { Input } from '@/components/Input';
+import { PointsEarnedModal } from '@/components/PointsEarnedModal';
 import { useAuthStore } from '@/store/auth-store';
-import { useListingsStore } from '@/store/listings-store';
-import { usePointsStore } from '@/store/points-store';
-import { PointsBadge } from '@/components/PointsBadge';
-import { ListingCard } from '@/components/ListingCard';
-import * as ImagePicker from 'expo-image-picker';
+import { usePropertyStore } from '@/store/property-store';
+import { Property } from '@/types/property';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, logout, updateUser } = useAuthStore();
-  const { getSavedListings, userListings, fetchUserListings } = useListingsStore();
-  const { generateReferralCode, referralInfo } = usePointsStore();
+  const { 
+    user, 
+    isAuthenticated, 
+    login, 
+    logout, 
+    register, 
+    completeProfile,
+    showPointsEarnedModal,
+    pointsEarnedAmount,
+    pointsEarnedReason,
+    hidePointsEarnedModal
+  } = useAuthStore();
+  const { 
+    savedProperties, 
+    properties, 
+    draftProperties, 
+    fetchDraftProperties 
+  } = usePropertyStore();
   
-  const [savedListings, setSavedListings] = useState(getSavedListings());
-  const [activeTab, setActiveTab] = useState('saved');
-  const [referralCode, setReferralCode] = useState('');
+  const [isLogin, setIsLogin] = useState(true);
+  const [email, setEmail] = useState('');
+  const [emailError, setEmailError] = useState('');
+  
+  const [password, setPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  
+  const [name, setName] = useState('');
+  const [nameError, setNameError] = useState('');
+  
+  const [phone, setPhone] = useState('');
+  const [phoneError, setPhoneError] = useState('');
+  
+  const [loading, setLoading] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [showDrafts, setShowDrafts] = useState(false);
   
   useEffect(() => {
-    fetchUserListings();
-    initReferralCode();
-  }, []);
+    if (isAuthenticated) {
+      fetchDraftProperties();
+    }
+  }, [isAuthenticated]);
   
-  useEffect(() => {
-    setSavedListings(getSavedListings());
-  }, [getSavedListings]);
+  const validateLoginForm = () => {
+    let isValid = true;
+    
+    // Reset errors
+    setEmailError('');
+    setPasswordError('');
+    
+    // Validate email
+    if (!email.trim()) {
+      setEmailError('Email is required');
+      isValid = false;
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
+      setEmailError('Please enter a valid email address');
+      isValid = false;
+    }
+    
+    // Validate password
+    if (!password.trim()) {
+      setPasswordError('Password is required');
+      isValid = false;
+    } else if (password.length < 6) {
+      setPasswordError('Password must be at least 6 characters');
+      isValid = false;
+    }
+    
+    return isValid;
+  };
   
-  const initReferralCode = async () => {
-    if (user?.referralCode) {
-      setReferralCode(user.referralCode);
+  const validateRegisterForm = () => {
+    let isValid = validateLoginForm();
+    
+    // Reset additional errors
+    setNameError('');
+    setPhoneError('');
+    
+    // Validate name
+    if (!name.trim()) {
+      setNameError('Name is required');
+      isValid = false;
+    }
+    
+    // Validate phone
+    if (!phone.trim()) {
+      setPhoneError('Phone number is required');
+      isValid = false;
+    } else if (!/^\+?[0-9]{10,15}$/.test(phone.replace(/\s/g, ''))) {
+      setPhoneError('Please enter a valid phone number');
+      isValid = false;
+    }
+    
+    return isValid;
+  };
+  
+  const handleAuth = async () => {
+    if (isLogin) {
+      if (!validateLoginForm()) return;
     } else {
-      try {
-        const code = await generateReferralCode();
-        setReferralCode(code);
-      } catch (error) {
-        console.error('Error generating referral code:', error);
+      if (!validateRegisterForm()) return;
+    }
+    
+    setLoading(true);
+    
+    try {
+      if (isLogin) {
+        await login(email, password);
+      } else {
+        await register({ name, email, phone }, password);
       }
+    } catch (error) {
+      Alert.alert('Error', 'Authentication failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
   
   const handleLogout = async () => {
     Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
+      'Confirm Logout',
+      'Are you sure you want to log out?',
       [
-        {
-          text: 'Cancel',
-          style: 'cancel',
-        },
-        {
-          text: 'Logout',
-          onPress: async () => {
-            try {
-              await logout();
-              // Manually navigate to auth after logout
-              router.replace('/(auth)');
-            } catch (error) {
-              console.error('Logout error:', error);
-              Alert.alert('Logout Failed', 'There was an error logging out. Please try again.');
-            }
-          },
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Logout', 
           style: 'destructive',
-        },
+          onPress: async () => {
+            await logout();
+          }
+        }
       ]
     );
   };
   
-  const handleChangeProfileImage = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
+  const handleCompleteProfile = async () => {
+    if (!user || user.profileCompleted) return;
     
-    if (!result.canceled) {
-      updateUser({ profileImage: result.assets[0].uri });
-    }
-  };
-  
-  const handleShareReferralCode = async () => {
-    try {
-      await Share.share({
-        message: `Join Housify with my referral code: ${referralCode} and get 50 HP (House Points) to unlock property listings! Download the app now.`,
-      });
-    } catch (error) {
-      console.error('Error sharing referral code:', error);
-    }
-  };
-  
-  const handleCopyReferralCode = () => {
-    Clipboard.setString(referralCode);
-    Alert.alert('Copied!', 'Referral code copied to clipboard');
-  };
-  
-  if (!user) {
-    return (
-      <View style={styles.container}>
-        <Text>Please login to view your profile</Text>
-      </View>
+    Alert.alert(
+      'Complete Profile',
+      'Would you like to complete your profile now? You will earn 10 HP!',
+      [
+        { text: 'Later', style: 'cancel' },
+        { 
+          text: 'Complete Now', 
+          onPress: async () => {
+            await completeProfile();
+          }
+        }
+      ]
     );
-  }
+  };
   
-  // Get first name for display
-  const firstName = user.name.split(' ')[0];
+  const toggleSwitch = () => {
+    setNotificationsEnabled(previousState => !previousState);
+  };
   
-  return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-      <View style={styles.header}>
-        <View style={styles.profileImageContainer}>
-          <TouchableOpacity 
-            style={styles.profileImage}
-            onPress={handleChangeProfileImage}
-          >
-            {user.profileImage ? (
-              <Image 
-                source={{ uri: user.profileImage }} 
-                style={styles.image} 
-              />
-            ) : (
-              <View style={styles.profilePlaceholder}>
-                <Text style={styles.profileInitial}>
-                  {user.name.charAt(0).toUpperCase()}
-                </Text>
-              </View>
-            )}
-            <View style={styles.editIconContainer}>
-              <Camera size={16} color={colors.background} />
-            </View>
-          </TouchableOpacity>
+  const toggleDrafts = () => {
+    setShowDrafts(!showDrafts);
+  };
+  
+  const navigateToSavedProperties = () => {
+    router.push('/saved-properties');
+  };
+  
+  const navigateToMyListings = () => {
+    router.push('/my-listings');
+  };
+  
+  const renderDraftItem = ({ item }: { item: Property }) => {
+    const statusColors = {
+      'draft': Colors.neutral.gray,
+      'pending-verification': Colors.status.warning
+    };
+    
+    const statusText = {
+      'draft': 'Draft',
+      'pending-verification': 'Pending Verification'
+    };
+    
+    const statusIcon = {
+      'draft': <FileEdit size={14} color={statusColors[item.status as 'draft' | 'pending-verification']} />,
+      'pending-verification': <Clock size={14} color={statusColors[item.status as 'draft' | 'pending-verification']} />
+    };
+    
+    return (
+      <TouchableOpacity 
+        style={styles.draftItem}
+        onPress={() => router.push(`/property/${item.id}`)}
+      >
+        <View style={styles.draftImageContainer}>
+          <Image
+            source={{ uri: item.images[0] || 'https://images.unsplash.com/photo-1560185007-cde436f6a4d0' }}
+            style={styles.draftImage}
+            contentFit="cover"
+          />
         </View>
-        
-        <Text style={styles.userName}>{user.name}</Text>
-        <Text style={styles.userEmail}>{user.email}</Text>
-        
-        <View style={styles.pointsContainer}>
-          <PointsBadge amount={user.housePoints || 0} />
+        <View style={styles.draftContent}>
+          <Text style={styles.draftTitle} numberOfLines={1}>{item.title}</Text>
+          <Text style={styles.draftPrice}>₦{item.price.toLocaleString('en-NG')}/yr</Text>
+          <View style={styles.draftStatus}>
+            {statusIcon[item.status as 'draft' | 'pending-verification']}
+            <Text style={[styles.draftStatusText, { color: statusColors[item.status as 'draft' | 'pending-verification'] }]}>
+              {statusText[item.status as 'draft' | 'pending-verification']}
+            </Text>
+          </View>
         </View>
-        
-        <TouchableOpacity 
-          style={styles.editProfileButton}
-          onPress={() => router.push('/settings/account')}
-        >
-          <Edit3 size={16} color={colors.primary} />
-          <Text style={styles.editProfileText}>Edit Profile</Text>
-        </TouchableOpacity>
-      </View>
-      
-      {/* Saved Listings Section */}
-      <View style={styles.savedListingsSection}>
-        <View style={styles.sectionTitleRow}>
-          <Text style={styles.sectionTitle}>Saved Listings</Text>
-          <Text style={styles.savedCount}>
-            {savedListings.length} {savedListings.length === 1 ? 'property' : 'properties'}
+      </TouchableOpacity>
+    );
+  };
+  
+  const renderAuthForm = () => {
+    return (
+      <View style={styles.authContainer}>
+        <View style={styles.authHeader}>
+          <Text style={styles.authTitle}>{isLogin ? 'Login' : 'Create Account'}</Text>
+          <Text style={styles.authSubtitle}>
+            {isLogin 
+              ? 'Sign in to access your account' 
+              : 'Join Housify to find your perfect home'}
           </Text>
         </View>
         
-        {savedListings.length > 0 ? (
-          <View style={styles.listingsContainer}>
-            {savedListings.map(listing => (
-              <ListingCard key={listing.id} listing={listing} />
-            ))}
+        {!isLogin && (
+          <Input
+            label="Full Name"
+            placeholder="Enter your full name"
+            value={name}
+            onChangeText={(text) => {
+              setName(text);
+              if (text.trim()) setNameError('');
+            }}
+            leftIcon={<User size={18} color={Colors.neutral.gray} />}
+            error={nameError}
+            required
+          />
+        )}
+        
+        <Input
+          label="Email Address"
+          placeholder="Enter your email"
+          value={email}
+          onChangeText={(text) => {
+            setEmail(text);
+            if (text.trim()) setEmailError('');
+          }}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          error={emailError}
+          required
+        />
+        
+        {!isLogin && (
+          <Input
+            label="Phone Number"
+            placeholder="Enter your phone number"
+            value={phone}
+            onChangeText={(text) => {
+              setPhone(text);
+              if (text.trim()) setPhoneError('');
+            }}
+            keyboardType="phone-pad"
+            error={phoneError}
+            required
+          />
+        )}
+        
+        <Input
+          label="Password"
+          placeholder="Enter your password"
+          value={password}
+          onChangeText={(text) => {
+            setPassword(text);
+            if (text.trim()) setPasswordError('');
+          }}
+          isPassword
+          error={passwordError}
+          required
+        />
+        
+        <Button
+          title={isLogin ? 'Login' : 'Create Account'}
+          onPress={handleAuth}
+          fullWidth
+          loading={loading}
+          style={styles.authButton}
+        />
+        
+        <TouchableOpacity 
+          onPress={() => setIsLogin(!isLogin)}
+          style={styles.switchAuthMode}
+        >
+          <Text style={styles.switchAuthText}>
+            {isLogin 
+              ? "Don't have an account? Sign up" 
+              : "Already have an account? Login"}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+  
+  const renderUserProfile = () => {
+    if (!user) return null;
+    
+    const savedPropertiesCount = savedProperties.length;
+    const listedPropertiesCount = user.listedProperties.length;
+    const draftsCount = draftProperties.length;
+    
+    // Ensure points is a number
+    const userPoints = typeof user.points === 'object' && user.points !== null 
+      ? (user.points.hp || 0) // If it's an object with hp property, use that
+      : (typeof user.points === 'number' ? user.points : 0); // Otherwise use the number or default to 0
+    
+    return (
+      <View style={styles.profileContainer}>
+        <View style={styles.profileHeader}>
+          <Image
+            source={{ uri: user.avatar || 'https://images.unsplash.com/photo-1633332755192-727a05c4013d' }}
+            style={styles.avatar}
+            contentFit="cover"
+          />
+          
+          <View style={styles.profileInfo}>
+            <Text style={styles.profileName}>{user.name}</Text>
+            <Text style={styles.profileEmail}>{user.email}</Text>
+            <View style={styles.verificationBadge}>
+              <Shield size={12} color={Colors.neutral.white} />
+              <Text style={styles.verificationText}>
+                {user.verifiedStatus ? 'Verified Account' : 'Unverified Account'}
+              </Text>
+            </View>
           </View>
-        ) : (
-          <View style={styles.emptyContainer}>
-            <Heart size={48} color={colors.textSecondary} />
-            <Text style={styles.emptyTitle}>No Saved Listings</Text>
-            <Text style={styles.emptyDescription}>
-              Properties you save will appear here for easy access
-            </Text>
+        </View>
+        
+        <View style={styles.pointsContainer}>
+          <View style={styles.pointsContent}>
+            <Text style={styles.pointsLabel}>Housify Points</Text>
+            <View style={styles.pointsValueContainer}>
+              <Coins size={20} color={Colors.accent.main} />
+              <Text style={styles.pointsValue}>{userPoints}</Text>
+            </View>
+          </View>
+          <TouchableOpacity 
+            style={styles.buyPointsButton}
+            onPress={() => router.push('/points')}
+          >
+            <Text style={styles.buyPointsText}>Buy Points</Text>
+          </TouchableOpacity>
+        </View>
+        
+        {!user.profileCompleted && (
+          <TouchableOpacity 
+            style={styles.completeProfileCard}
+            onPress={handleCompleteProfile}
+          >
+            <View style={styles.completeProfileContent}>
+              <Text style={styles.completeProfileTitle}>Complete Your Profile</Text>
+              <Text style={styles.completeProfileText}>
+                Complete your profile to earn 10 Housify Points!
+              </Text>
+            </View>
+            <View style={styles.completeProfilePoints}>
+              <Coins size={16} color={Colors.accent.main} />
+              <Text style={styles.completeProfilePointsText}>+10 HP</Text>
+            </View>
+          </TouchableOpacity>
+        )}
+        
+        <View style={styles.statsContainer}>
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{savedPropertiesCount}</Text>
+            <Text style={styles.statLabel}>Saved</Text>
+          </View>
+          
+          <View style={styles.statDivider} />
+          
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{listedPropertiesCount}</Text>
+            <Text style={styles.statLabel}>Listed</Text>
+          </View>
+          
+          <View style={styles.statDivider} />
+          
+          <View style={styles.statItem}>
+            <Text style={styles.statValue}>{user.unlockedProperties.length}</Text>
+            <Text style={styles.statLabel}>Unlocked</Text>
+          </View>
+        </View>
+        
+        {draftsCount > 0 && (
+          <View style={styles.draftsSection}>
             <TouchableOpacity 
-              style={styles.browseButton}
-              onPress={() => router.push('/(tabs)')}
+              style={styles.draftsSectionHeader}
+              onPress={toggleDrafts}
             >
-              <Text style={styles.browseButtonText}>Browse Listings</Text>
+              <View style={styles.draftsSectionTitle}>
+                <AlertTriangle size={16} color={Colors.status.warning} />
+                <Text style={styles.draftsSectionTitleText}>
+                  Pending Listings ({draftsCount})
+                </Text>
+              </View>
+              <ChevronRight 
+                size={20} 
+                color={Colors.neutral.gray} 
+                style={{ transform: [{ rotate: showDrafts ? '90deg' : '0deg' }] }}
+              />
             </TouchableOpacity>
+            
+            {showDrafts && (
+              <FlatList
+                data={draftProperties}
+                renderItem={renderDraftItem}
+                keyExtractor={(item) => item.id}
+                scrollEnabled={false}
+                contentContainerStyle={styles.draftsList}
+              />
+            )}
           </View>
         )}
-      </View>
-      
-      <View style={styles.referralSection}>
-        <View style={styles.referralHeader}>
-          <View style={styles.referralIconContainer}>
-            <Gift size={20} color={colors.iconLight} />
-          </View>
-          <View style={styles.referralTextContainer}>
-            <Text style={styles.referralTitle}>Refer & Earn</Text>
-            <Text style={styles.referralSubtitle}>
-              Share your code and earn 100 HP for each friend who joins
-            </Text>
-          </View>
-        </View>
         
-        <View style={styles.referralCodeContainer}>
-          <Text style={styles.referralCodeLabel}>Your Referral Code</Text>
-          <View style={styles.referralCodeBox}>
-            <Text style={styles.referralCode}>{referralCode}</Text>
-            <TouchableOpacity 
-              style={styles.copyButton}
-              onPress={handleCopyReferralCode}
-            >
-              <Copy size={16} color={colors.primary} />
-            </TouchableOpacity>
-          </View>
+        <View style={styles.menuSection}>
+          <Text style={styles.menuSectionTitle}>My Properties</Text>
           
           <TouchableOpacity 
-            style={styles.shareButton}
-            onPress={handleShareReferralCode}
+            style={styles.menuItem}
+            onPress={navigateToSavedProperties}
           >
-            <Share2 size={16} color={colors.iconLight} />
-            <Text style={styles.shareButtonText}>Share Your Code</Text>
+            <View style={styles.menuItemLeft}>
+              <View style={[styles.menuItemIcon, { backgroundColor: Colors.primary.light + '20' }]}>
+                <Heart size={20} color={Colors.primary.main} />
+              </View>
+              <Text style={styles.menuItemText}>Saved Properties</Text>
+            </View>
+            <ChevronRight size={20} color={Colors.neutral.gray} />
           </TouchableOpacity>
           
-          <View style={styles.referralStats}>
-            <View style={styles.referralStat}>
-              <Users size={16} color={colors.textSecondary} />
-              <Text style={styles.referralStatText}>
-                {referralInfo.totalReferred} friends referred
-              </Text>
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={navigateToMyListings}
+          >
+            <View style={styles.menuItemLeft}>
+              <View style={[styles.menuItemIcon, { backgroundColor: Colors.accent.light + '20' }]}>
+                <Home size={20} color={Colors.accent.main} />
+              </View>
+              <Text style={styles.menuItemText}>My Listings</Text>
             </View>
-            <View style={styles.referralStat}>
-              <Gift size={16} color={colors.textSecondary} />
-              <Text style={styles.referralStatText}>
-                {referralInfo.pointsEarned} HP earned
-              </Text>
-            </View>
-          </View>
+            <ChevronRight size={20} color={Colors.neutral.gray} />
+          </TouchableOpacity>
         </View>
-      </View>
-      
-      <View style={styles.settingsSection}>
-        <Text style={styles.sectionTitle}>Settings</Text>
+        
+        <View style={styles.menuSection}>
+          <Text style={styles.menuSectionTitle}>Settings</Text>
+          
+          <View style={styles.menuItem}>
+            <View style={styles.menuItemLeft}>
+              <View style={[styles.menuItemIcon, { backgroundColor: '#F59E0B20' }]}>
+                <Bell size={20} color={Colors.status.warning} />
+              </View>
+              <Text style={styles.menuItemText}>Notifications</Text>
+            </View>
+            <Switch
+              trackColor={{ false: Colors.neutral.lightGray, true: Colors.primary.light }}
+              thumbColor={notificationsEnabled ? Colors.primary.main : Colors.neutral.white}
+              onValueChange={toggleSwitch}
+              value={notificationsEnabled}
+            />
+          </View>
+          
+          <TouchableOpacity style={styles.menuItem}>
+            <View style={styles.menuItemLeft}>
+              <View style={[styles.menuItemIcon, { backgroundColor: '#10B98120' }]}>
+                <Settings size={20} color={Colors.status.success} />
+              </View>
+              <Text style={styles.menuItemText}>Account Settings</Text>
+            </View>
+            <ChevronRight size={20} color={Colors.neutral.gray} />
+          </TouchableOpacity>
+        </View>
+        
+        <View style={styles.menuSection}>
+          <Text style={styles.menuSectionTitle}>Support</Text>
+          
+          <TouchableOpacity style={styles.menuItem}>
+            <View style={styles.menuItemLeft}>
+              <View style={[styles.menuItemIcon, { backgroundColor: '#3B82F620' }]}>
+                <HelpCircle size={20} color={Colors.status.info} />
+              </View>
+              <Text style={styles.menuItemText}>Help & Support</Text>
+            </View>
+            <ChevronRight size={20} color={Colors.neutral.gray} />
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.menuItem}>
+            <View style={styles.menuItemLeft}>
+              <View style={[styles.menuItemIcon, { backgroundColor: '#F59E0B20' }]}>
+                <Star size={20} color={Colors.status.warning} />
+              </View>
+              <Text style={styles.menuItemText}>Rate the App</Text>
+            </View>
+            <ChevronRight size={20} color={Colors.neutral.gray} />
+          </TouchableOpacity>
+        </View>
         
         <TouchableOpacity 
-          style={styles.settingsItem}
-          onPress={() => router.push('/settings/account')}
-        >
-          <View style={styles.settingsIconContainer}>
-            <User size={20} color={colors.iconLight} />
-          </View>
-          <View style={styles.settingsTextContainer}>
-            <Text style={styles.settingsItemTitle}>Account Settings</Text>
-            <Text style={styles.settingsItemDescription}>Manage your account details</Text>
-          </View>
-          <ChevronRight size={20} color={colors.textSecondary} />
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.settingsItem}
-          onPress={() => router.push('/settings/notifications')}
-        >
-          <View style={[styles.settingsIconContainer, { backgroundColor: colors.secondary }]}>
-            <Bell size={20} color={colors.iconLight} />
-          </View>
-          <View style={styles.settingsTextContainer}>
-            <Text style={styles.settingsItemTitle}>Notifications</Text>
-            <Text style={styles.settingsItemDescription}>Manage notification preferences</Text>
-          </View>
-          <ChevronRight size={20} color={colors.textSecondary} />
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.settingsItem}
-          onPress={() => router.push('/settings/privacy')}
-        >
-          <View style={[styles.settingsIconContainer, { backgroundColor: colors.verified }]}>
-            <Lock size={20} color={colors.iconLight} />
-          </View>
-          <View style={styles.settingsTextContainer}>
-            <Text style={styles.settingsItemTitle}>Privacy & Security</Text>
-            <Text style={styles.settingsItemDescription}>Manage privacy settings</Text>
-          </View>
-          <ChevronRight size={20} color={colors.textSecondary} />
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.settingsItem}
-          onPress={() => router.push('/settings/support')}
-        >
-          <View style={[styles.settingsIconContainer, { backgroundColor: '#6C63FF' }]}>
-            <HelpCircle size={20} color={colors.iconLight} />
-          </View>
-          <View style={styles.settingsTextContainer}>
-            <Text style={styles.settingsItemTitle}>Help & Support</Text>
-            <Text style={styles.settingsItemDescription}>Get help and contact support</Text>
-          </View>
-          <ChevronRight size={20} color={colors.textSecondary} />
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={[styles.settingsItem, styles.logoutItem]}
+          style={styles.logoutButton}
           onPress={handleLogout}
         >
-          <View style={[styles.settingsIconContainer, { backgroundColor: colors.error }]}>
-            <LogOut size={20} color={colors.iconLight} />
-          </View>
-          <View style={styles.settingsTextContainer}>
-            <Text style={[styles.settingsItemTitle, { color: colors.error }]}>Logout</Text>
-            <Text style={styles.settingsItemDescription}>Sign out of your account</Text>
-          </View>
+          <LogOut size={20} color={Colors.status.error} />
+          <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
       </View>
+    );
+  };
+  
+  return (
+    <SafeAreaView style={styles.container} edges={['right', 'left', 'top', 'bottom']}>
+      <StatusBar barStyle="dark-content" backgroundColor={Colors.background.primary} />
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {isAuthenticated ? renderUserProfile() : renderAuthForm()}
+      </ScrollView>
       
-      <View style={styles.listingsSection}>
-        <View style={styles.tabsContainer}>
-          <TouchableOpacity 
-            style={[
-              styles.tab,
-              activeTab === 'saved' && styles.activeTab
-            ]}
-            onPress={() => setActiveTab('saved')}
-          >
-            <Heart 
-              size={16} 
-              color={activeTab === 'saved' ? colors.primary : colors.textSecondary} 
-            />
-            <Text style={[
-              styles.tabText,
-              activeTab === 'saved' && styles.activeTabText
-            ]}>
-              Saved Listings
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[
-              styles.tab,
-              activeTab === 'my' && styles.activeTab
-            ]}
-            onPress={() => setActiveTab('my')}
-          >
-            <Home 
-              size={16} 
-              color={activeTab === 'my' ? colors.primary : colors.textSecondary} 
-            />
-            <Text style={[
-              styles.tabText,
-              activeTab === 'my' && styles.activeTabText
-            ]}>
-              My Listings
-            </Text>
-          </TouchableOpacity>
-        </View>
-        
-        <View style={styles.listingsContainer}>
-          {activeTab === 'saved' ? (
-            savedListings.length > 0 ? (
-              savedListings.map(listing => (
-                <ListingCard key={listing.id} listing={listing} />
-              ))
-            ) : (
-              <View style={styles.emptyContainer}>
-                <Heart size={48} color={colors.textSecondary} />
-                <Text style={styles.emptyTitle}>No Saved Listings</Text>
-                <Text style={styles.emptyDescription}>
-                  Properties you save will appear here
-                </Text>
-                <TouchableOpacity 
-                  style={styles.browseButton}
-                  onPress={() => router.push('/(tabs)')}
-                >
-                  <Text style={styles.browseButtonText}>Browse Listings</Text>
-                </TouchableOpacity>
-              </View>
-            )
-          ) : (
-            userListings.length > 0 ? (
-              userListings.map(listing => (
-                <ListingCard key={listing.id} listing={listing} />
-              ))
-            ) : (
-              <View style={styles.emptyContainer}>
-                <Home size={48} color={colors.textSecondary} />
-                <Text style={styles.emptyTitle}>No Listings Yet</Text>
-                <Text style={styles.emptyDescription}>
-                  You haven't added any properties yet
-                </Text>
-                <TouchableOpacity 
-                  style={styles.browseButton}
-                  onPress={() => router.push('/add-listing')}
-                >
-                  <Text style={styles.browseButtonText}>Add New Listing</Text>
-                </TouchableOpacity>
-              </View>
-            )
-          )}
-        </View>
-      </View>
-    </ScrollView>
+      <PointsEarnedModal
+        visible={showPointsEarnedModal}
+        onClose={hidePointsEarnedModal}
+        points={pointsEarnedAmount}
+        reason={pointsEarnedReason}
+      />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: Colors.background.primary,
   },
-  contentContainer: {
-    paddingBottom: 24,
+  authContainer: {
+    padding: 16,
   },
-  header: {
+  authHeader: {
+    marginBottom: 24,
+  },
+  authTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: Colors.text.primary,
+    marginBottom: 8,
+  },
+  authSubtitle: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+  },
+  authButton: {
+    marginTop: 16,
+    height: 56, // Ensure consistent button height
+  },
+  switchAuthMode: {
+    marginTop: 16,
     alignItems: 'center',
-    paddingVertical: 24,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
   },
-  profileImageContainer: {
+  switchAuthText: {
+    fontSize: 14,
+    color: Colors.primary.main,
+    fontWeight: '500',
+  },
+  profileContainer: {
+    padding: 16,
+  },
+  profileHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 16,
   },
-  profileImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    position: 'relative',
+  avatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    marginRight: 16,
   },
-  image: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 50,
+  profileInfo: {
+    flex: 1,
   },
-  profilePlaceholder: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 50,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  profileInitial: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: colors.background,
-  },
-  editIconContainer: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: colors.background,
-  },
-  userName: {
+  profileName: {
     fontSize: 20,
-    fontWeight: 'bold',
-    color: colors.text,
+    fontWeight: '600',
+    color: Colors.text.primary,
     marginBottom: 4,
   },
-  userEmail: {
+  profileEmail: {
     fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 16,
+    color: Colors.text.secondary,
+    marginBottom: 8,
+  },
+  verificationBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.status.success,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    gap: 4,
+  },
+  verificationText: {
+    fontSize: 12,
+    color: Colors.neutral.white,
+    fontWeight: '500',
   },
   pointsContainer: {
-    marginBottom: 16,
-  },
-  editProfileButton: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: colors.primary,
-  },
-  editProfileText: {
-    fontSize: 14,
-    color: colors.primary,
-    fontWeight: '500',
-    marginLeft: 8,
-  },
-  referralSection: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  referralHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  referralIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.referral,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  referralTextContainer: {
-    flex: 1,
-  },
-  referralTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginBottom: 2,
-  },
-  referralSubtitle: {
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  referralCodeContainer: {
-    backgroundColor: colors.card,
+    backgroundColor: Colors.primary.main,
     borderRadius: 12,
     padding: 16,
+    marginBottom: 16,
   },
-  referralCodeLabel: {
+  pointsContent: {
+    flex: 1,
+  },
+  pointsLabel: {
     fontSize: 14,
-    color: colors.textSecondary,
-    marginBottom: 8,
+    color: Colors.neutral.white,
+    opacity: 0.8,
+    marginBottom: 4,
   },
-  referralCodeBox: {
+  pointsValueContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.background,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
+    gap: 8,
+  },
+  pointsValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: Colors.neutral.white,
+  },
+  buyPointsButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 16,
-  },
-  referralCode: {
-    flex: 1,
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.text,
-    letterSpacing: 1,
-  },
-  copyButton: {
-    padding: 4,
-  },
-  shareButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.primary,
+    paddingVertical: 8,
     borderRadius: 8,
-    paddingVertical: 10,
-    marginBottom: 16,
   },
-  shareButtonText: {
+  buyPointsText: {
+    color: Colors.neutral.white,
     fontSize: 14,
     fontWeight: '500',
-    color: colors.iconLight,
-    marginLeft: 8,
   },
-  referralStats: {
+  completeProfileCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: Colors.accent.light + '10',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: Colors.accent.main,
   },
-  referralStat: {
+  completeProfileContent: {
+    flex: 1,
+  },
+  completeProfileTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text.primary,
+    marginBottom: 4,
+  },
+  completeProfileText: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+  },
+  completeProfilePoints: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: Colors.accent.light + '20',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 4,
   },
-  referralStatText: {
-    fontSize: 12,
-    color: colors.textSecondary,
-    marginLeft: 4,
+  completeProfilePointsText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.accent.main,
   },
-  settingsSection: {
+  statsContainer: {
+    flexDirection: 'row',
+    backgroundColor: Colors.background.card,
+    borderRadius: 12,
     padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    marginBottom: 24,
   },
-  sectionTitle: {
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: Colors.text.primary,
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 14,
+    color: Colors.text.secondary,
+  },
+  statDivider: {
+    width: 1,
+    backgroundColor: Colors.neutral.lightGray,
+    marginHorizontal: 8,
+  },
+  draftsSection: {
+    backgroundColor: Colors.background.card,
+    borderRadius: 12,
+    marginBottom: 24,
+    overflow: 'hidden',
+  },
+  draftsSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+  },
+  draftsSectionTitle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  draftsSectionTitleText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text.primary,
+  },
+  draftsList: {
+    padding: 16,
+    paddingTop: 0,
+  },
+  draftItem: {
+    flexDirection: 'row',
+    backgroundColor: Colors.background.primary,
+    borderRadius: 8,
+    marginBottom: 12,
+    overflow: 'hidden',
+  },
+  draftImageContainer: {
+    width: 80,
+    height: 80,
+  },
+  draftImage: {
+    width: '100%',
+    height: '100%',
+  },
+  draftContent: {
+    flex: 1,
+    padding: 12,
+    justifyContent: 'space-between',
+  },
+  draftTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text.primary,
+  },
+  draftPrice: {
+    fontSize: 14,
+    color: Colors.primary.main,
+    fontWeight: '500',
+  },
+  draftStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  draftStatusText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  menuSection: {
+    marginBottom: 24,
+  },
+  menuSectionTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.text,
+    fontWeight: '600',
+    color: Colors.text.primary,
     marginBottom: 16,
   },
-  settingsItem: {
+  menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    justifyContent: 'space-between',
+    backgroundColor: Colors.background.card,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    height: 72, // Ensure consistent height for menu items
   },
-  settingsIconContainer: {
+  menuItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  menuItemIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: colors.primary,
-    justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    justifyContent: 'center',
+    marginRight: 16,
   },
-  settingsTextContainer: {
-    flex: 1,
-  },
-  settingsItemTitle: {
+  menuItemText: {
     fontSize: 16,
-    fontWeight: '500',
-    color: colors.text,
-    marginBottom: 2,
+    color: Colors.text.primary,
   },
-  settingsItemDescription: {
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  logoutItem: {
-    borderBottomWidth: 0,
-    marginTop: 8,
-  },
-  listingsSection: {
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.status.error + '10',
     padding: 16,
-  },
-  tabsContainer: {
-    flexDirection: 'row',
-    marginBottom: 16,
-    borderRadius: 8,
-    backgroundColor: colors.card,
-    padding: 4,
-  },
-  tab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-    borderRadius: 6,
-  },
-  activeTab: {
-    backgroundColor: colors.background,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  tabText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    marginLeft: 6,
-  },
-  activeTabText: {
-    color: colors.text,
-    fontWeight: '500',
-  },
-  listingsContainer: {
-    width: '100%',
-  },
-  emptyContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 32,
-    backgroundColor: colors.card,
     borderRadius: 12,
-    marginTop: 8,
-    marginBottom: 8,
+    marginBottom: 32,
+    gap: 8,
+    height: 56, // Ensure consistent button height
   },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.text,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptyDescription: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  browseButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    backgroundColor: colors.primary,
-    borderRadius: 8,
-  },
-  browseButtonText: {
-    fontSize: 14,
-    color: colors.background,
-    fontWeight: '500',
-  },
-  savedListingsSection: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    marginBottom: 16,
-  },
-  sectionTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  savedCount: {
-    fontSize: 14,
-    color: colors.textSecondary,
+  logoutText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.status.error,
   },
 });
